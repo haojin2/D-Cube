@@ -1,9 +1,41 @@
 import psycopg2
 import sys
 import os
+import time
+from dcube_params import *
 
 global conn
 conn = None
+
+
+def init_database():
+    username = os.environ['USER']
+    conn = psycopg2.connect(dbname=username, user=username, password="", port=PGPORT)
+    time.sleep(1)
+    return conn
+
+
+def database_clearup():
+    conn.close()
+    os.system("/usr/lib/postgresql/9.2/bin/pg_ctl -D $HOME/826prj stop")
+    time.sleep(1)
+
+
+def table_fresh_create(conn, name, columns, flag = True):
+    cur = conn.cursor()
+    if flag:
+        try:
+            cur.execute("DROP TABLE %s;" % name)
+            conn.commit()
+        except psycopg2.Error:
+            print ""
+            pass
+    try:
+        cur.execute("CREATE TABLE %s (%s);" % (name, columns))
+    except:
+        print
+    conn.commit()
+    cur.close()
 
 
 def copy_table(src, cpy):
@@ -35,10 +67,6 @@ def get_distinct_val(new_tb, tb, col):
     conn.commit()
     cur.close()
 
-os.system("/usr/lib/postgresql/9.2/bin/pg_ctl -D $HOME/826prj/ -o '-k /tmp' start")
-query = raw_input("press to continue...\n")
-username = os.environ['USER']
-port = 15000
-conn = psycopg2.connect(dbname=username, user=username, password="", port = port)
-copy_table("darpa", )
-os.system("/usr/lib/postgresql/9.2/bin/pg_ctl -D $HOME/826prj stop")
+conn = init_database()
+a = raw_input("press to continue...\n")
+database_clearup()
