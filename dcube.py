@@ -4,10 +4,6 @@ import os
 import time
 from dcube_params import *
 
-global conn
-conn = None
-
-
 def init_database():
     os.system("/usr/lib/postgresql/9.2/bin/pg_ctl -D $HOME/826prj/ -o '-k /tmp' start")
     time.sleep(1)
@@ -54,10 +50,16 @@ def table_fresh_create_from_file(conn, name, columns, filename, flag = True):
     cur.close()
 
 
-def copy_table(src, cpy):
+def copy_table(conn, src, cpy, drop = True):
     cur = conn.cursor()
+    if drop:
+        try:
+            cur.execute("DROP TABLE %s;" % cpy)
+        except psycopg2.Error:
+            conn.commit()
+            pass
     try:
-        cur.execute("CREATE TABLE %s AS TABLE %d;" % (src, cpy))
+        cur.execute("CREATE TABLE %s AS TABLE %s;" % (cpy, src))
     except psycopg2.Error:
         print "Error when copying %s to %s" % (src, cpy)
     conn.commit()
@@ -83,12 +85,26 @@ def get_distinct_val(conn, new_tb, tb, col):
     conn.commit()
     cur.close()
 
+
+def bucketize(conn, relation, col, flag = 0):
+    cur = conn.cursor()
+    if flag == 0:
+        print "bucketize by hour"
+    else:
+        print "bucketize by day"
+    cur.close()
+
+def dcube(conn, relation, k, measure):
+    cur = conn.cursor()
+    print tuple_counts(conn, "ori_darpa")
+    drop_table(conn, "ori_darpa")
+    conn.commit()
+    cur.close()
+
 conn = init_database()
 a = raw_input("press to continue...\n")
 table_fresh_create_from_file(conn, "darpa", "source_ip text, dest_ip text, time_in_minutes text", "darpa.csv", False)
-get_distinct_val(conn, "ori_source", "darpa", "source_ip")
-print tuple_counts(conn, "ori_source")
+dcube(conn, "darpa", 1, None)
 print tuple_counts(conn, "darpa")
-drop_table(conn, "ori_source")
 drop_table(conn, "darpa")
 database_clearup()
