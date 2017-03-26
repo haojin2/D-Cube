@@ -9,9 +9,10 @@ conn = None
 
 
 def init_database():
+    os.system("/usr/lib/postgresql/9.2/bin/pg_ctl -D $HOME/826prj/ -o '-k /tmp' start")
+    time.sleep(1)
     username = os.environ['USER']
     conn = psycopg2.connect(dbname=username, user=username, password="", port=PGPORT)
-    time.sleep(1)
     return conn
 
 
@@ -21,19 +22,34 @@ def database_clearup():
     time.sleep(1)
 
 
-def table_fresh_create(conn, name, columns, flag = True):
+def tuple_counts(conn, name):
     cur = conn.cursor()
+    try:
+        cur.execute("SELECT COUNT(*) FROM %s" % (name))
+    except psycopg2.Error:
+        print "Error when getting count from %s" % name
+    data = cur.fetchone()
+    return data[0]
+
+
+def table_fresh_create_from_file(conn, name, columns, filename, flag = True):
+    cur = conn.cursor()
+    filename = os.path.abspath("%s" % filename)
     if flag:
         try:
             cur.execute("DROP TABLE %s;" % name)
-            conn.commit()
         except psycopg2.Error:
-            print ""
+            conn.commit()
             pass
     try:
         cur.execute("CREATE TABLE %s (%s);" % (name, columns))
-    except:
-        print
+    except psycopg2.Error:
+        print "Error when Create %s" % name
+    try:
+        cur.execute("COPY %s FROM '%s' DELIMITER ',' CSV;" % (name, filename))
+    except psycopg2.Error:
+        print "Error when COPY %s FROM %s" % (name, filename)
+
     conn.commit()
     cur.close()
 
@@ -48,7 +64,7 @@ def copy_table(src, cpy):
     cur.close()
 
 
-def drop_table(tb):
+def drop_table(conn, tb):
     cur = conn.cursor()
     try:
         cur.execute("DROP TABLE %s;" % tb)
@@ -58,7 +74,7 @@ def drop_table(tb):
     cur.close()
 
 
-def get_distinct_val(new_tb, tb, col):
+def get_distinct_val(conn, new_tb, tb, col):
     cur = conn.cursor()
     try:
         cur.execute("CREATE TABLE %s AS SELECT DISTINCT %s FROM %s;" % (new_tb, col, tb))
@@ -69,4 +85,10 @@ def get_distinct_val(new_tb, tb, col):
 
 conn = init_database()
 a = raw_input("press to continue...\n")
+table_fresh_create_from_file(conn, "darpa", "source_ip text, dest_ip text, time_in_minutes text", "darpa.csv", False)
+get_distinct_val(conn, "ori_source", "darpa", "source_ip")
+print tuple_counts(conn, "ori_source")
+print tuple_counts(conn, "darpa")
+drop_table(conn, "ori_source")
+drop_table(conn, "darpa")
 database_clearup()
