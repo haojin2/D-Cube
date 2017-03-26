@@ -93,21 +93,31 @@ def get_distinct_val(conn, new_tb, tb, col):
     cur.close()
 
 
-def bucketize(conn, relation, cols, flag = 0):
+def bucketize(conn, relation, flag = 0):
     cur = conn.cursor()
     new_name = relation + "_ori"
     if flag == 0:
         print "bucketize by hour"
         # """SELECT src, dest, substring(mins from 1 for 13) as bucket, COUNT(*) as cnt FROM darpa GROUP BY src, dest, substring(mins from 1 for 13);"""
+        cur.execute("""
+                    CREATE TABLE %s AS (
+                    SELECT src, dest, substring(mins from 1 for 13) as bucket, COUNT(*) as cnt FROM darpa GROUP BY src, dest, substring(mins from 1 for 13));
+                    """ % new_name)
     else:
         print "bucketize by day"
+        # """SELECT src, dest, substring(mins from 1 for 10) as bucket, COUNT(*) as cnt FROM darpa GROUP BY src, dest, substring(mins from 1 for 10);"""
+        cur.execute("""
+                    CREATE TABLE %s AS (
+                    SELECT src, dest, substring(mins from 1 for 10) as bucket, COUNT(*) as cnt FROM darpa GROUP BY src, dest, substring(mins from 1 for 10));
+                    """ % new_name)
+    conn.commit()
     cur.close()
     return new_name
 
 
 def dcube(conn, relation, k, measure):
     cur = conn.cursor()
-    ori_table = bucketize(conn, relation, [], BUCKET_FLAG)
+    ori_table = bucketize(conn, relation, BUCKET_FLAG)
     conn.commit()
     cur.close()
 
