@@ -5,7 +5,7 @@ import time
 from dcube_params import *
 
 def init_database():
-    os.system("/usr/lib/postgresql/9.2/bin/pg_ctl -D $HOME/826prj/ -o '-k /tmp' start")
+    os.system("pg_ctl -D $HOME/826prj/ -o '-k /tmp' start")
     time.sleep(1)
     username = os.environ['USER']
     conn = psycopg2.connect(dbname=username, user=username, password="", port=PGPORT)
@@ -14,7 +14,7 @@ def init_database():
 
 def database_clearup():
     conn.close()
-    os.system("/usr/lib/postgresql/9.2/bin/pg_ctl -D $HOME/826prj stop")
+    os.system("pg_ctl -D $HOME/826prj stop")
     time.sleep(1)
 
 
@@ -28,9 +28,8 @@ def tuple_counts(conn, name):
     return data[0]
 
 
-def table_fresh_create_from_file(conn, name, columns, filename, flag = True):
+def table_fresh_create(conn, name, columns, flag = True):
     cur = conn.cursor()
-    filename = os.path.abspath("%s" % filename)
     if flag:
         try:
             cur.execute("DROP TABLE %s;" % name)
@@ -41,6 +40,13 @@ def table_fresh_create_from_file(conn, name, columns, filename, flag = True):
         cur.execute("CREATE TABLE %s (%s);" % (name, columns))
     except psycopg2.Error:
         print "Error when Create %s" % name
+    conn.commit()
+    cur.close()
+
+def table_fresh_create_from_file(conn, name, columns, filename, flag = True):
+    cur = conn.cursor()
+    filename = os.path.abspath("%s" % filename)
+    table_fresh_create(conn, name, columns, flag)
     try:
         cur.execute("COPY %s FROM '%s' DELIMITER ',' CSV;" % (name, filename))
     except psycopg2.Error:
@@ -96,6 +102,7 @@ def bucketize(conn, relation, col, flag = 0):
 
 def dcube(conn, relation, k, measure):
     cur = conn.cursor()
+
     print tuple_counts(conn, "ori_darpa")
     drop_table(conn, "ori_darpa")
     conn.commit()
