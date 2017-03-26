@@ -2,6 +2,8 @@ import psycopg2
 import sys
 import os
 import time
+import numpy
+import math
 from dcube_params import *
 
 def init_database():
@@ -27,6 +29,14 @@ def tuple_counts(conn, name):
     data = cur.fetchone()
     return data[0]
 
+def tuple_counts_distinct(conn, name, col):
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT COUNT (DISTINCT %s) FROM %s" % (col, name))
+    except psycopg2.Error:
+        print "Error when getting count from %s" % name
+    data = cur.fetchone()
+    return data[0]
 
 def table_fresh_create(conn, name, columns, flag = True):
     cur = conn.cursor()
@@ -113,5 +123,64 @@ a = raw_input("press to continue...\n")
 table_fresh_create_from_file(conn, "darpa", "source_ip text, dest_ip text, time_in_minutes text", "darpa.csv", False)
 # dcube(conn, "darpa", 1, None)
 print tuple_counts(conn, "darpa")
-drop_table(conn, "darpa")
+#drop_table(conn, "darpa")
 database_clearup()
+
+
+## dimension select algorithms ##
+
+def get_mass(conn, block_tb):
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT SUM(cnt) FROM %s" % (block_tb))
+    except psycopg2.Error:
+        print "Error when getting count from %s" % block_tb
+    data = cur.fetchone()
+    return float(data[0])
+    
+
+def rho_ari(conn, block_tb):
+    m = get_mass(conn, block_tb)
+    temp = 0
+    for col in columns:
+        temp += tuple_counts_distinct(conn, block_tb, col)
+
+    return 3. * float(m) / float(temp)
+        
+def rho_geo(conn, block_tb):
+    m = get_mass(conn, block_tb)
+    temp = 1
+    for col in columns:
+        temp *= tuple_counts_distinct(conn, block_tb, col)
+
+    return float(m) / float(temp)**(1./3.)
+        
+def rho_susp(conn, block_tb, rel_tb):
+    mb = get_mass(conn, block_tb)
+    mr = get_mass(conn, rel_tb)
+    temp = (numpy.log(mb/mr) - 1) * mb
+    temp1 = 1
+    for col in columns:
+        temp1 *= tuple_counts_distinct(conn, block_tb, col)/tuple_counts_distinct(conn, rel_tb, col)
+    
+    temp += mr * temp1
+    temp -= mb * numpy.log(temp1)
+
+
+def select_dimension_by_density(conn, block_tb, rel_tb, density_measure):
+    mb = get_mass(conn, block_tb)
+    mr = get_mass(conn, rel_tb)
+    ret = ''
+    max_rho = -float("inf")
+    for col in columns:
+        if mb == 0:
+            continue
+        
+        filter_block(conn, block_tb, rel_tb, 
+
+        if rho > max_rho:
+            max_rho = rho
+            ret = col
+
+    return ret
+
