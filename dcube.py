@@ -111,7 +111,7 @@ def dcube(conn, relation, k, measure):
 conn = init_database()
 a = raw_input("press to continue...\n")
 table_fresh_create_from_file(conn, "darpa", "source_ip text, dest_ip text, time_in_minutes text", "darpa.csv", False)
-dcube(conn, "darpa", 1, None)
+# dcube(conn, "darpa", 1, None)
 print tuple_counts(conn, "darpa")
 drop_table(conn, "darpa")
 database_clearup()
