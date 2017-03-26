@@ -142,7 +142,7 @@ def get_mass(conn, block_tb):
     return float(data[0])
     
 
-def rho_ari(conn, block_tb):
+def rho_ari(conn, block_tb, rel_tb):
     m = get_mass(conn, block_tb)
     temp = 0
     for col in columns:
@@ -150,7 +150,7 @@ def rho_ari(conn, block_tb):
 
     return 3. * float(m) / float(temp)
         
-def rho_geo(conn, block_tb):
+def rho_geo(conn, block_tb, rel_tb):
     m = get_mass(conn, block_tb)
     temp = 1
     for col in columns:
@@ -169,6 +169,8 @@ def rho_susp(conn, block_tb, rel_tb):
     temp += mr * temp1
     temp -= mb * numpy.log(temp1)
 
+def filter_block(conn, block_tb, mass):
+    mb = g
 
 def select_dimension_by_density(conn, block_tb, rel_tb, density_measure):
     mb = get_mass(conn, block_tb)
@@ -179,7 +181,10 @@ def select_dimension_by_density(conn, block_tb, rel_tb, density_measure):
         if mb == 0:
             continue
         
-        filter_block(conn, block_tb, rel_tb, 
+        bi = tuple_counts_distinct(conn, block_tb, col)
+        filter_block(conn, block_tb, mb/)
+
+        rho = density_measure(conn, block_tb, rel_tb)
 
         if rho > max_rho:
             max_rho = rho
