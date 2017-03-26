@@ -43,6 +43,7 @@ def table_fresh_create(conn, name, columns, flag = True):
     conn.commit()
     cur.close()
 
+
 def table_fresh_create_from_file(conn, name, columns, filename, flag = True):
     cur = conn.cursor()
     filename = os.path.abspath("%s" % filename)
@@ -92,25 +93,27 @@ def get_distinct_val(conn, new_tb, tb, col):
     cur.close()
 
 
-def bucketize(conn, relation, col, flag = 0):
+def bucketize(conn, relation, cols, flag = 0):
     cur = conn.cursor()
+    new_name = relation + "_ori"
     if flag == 0:
         print "bucketize by hour"
+        # """SELECT src, dest, substring(mins from 1 for 13) as bucket, COUNT(*) as cnt FROM darpa GROUP BY src, dest, substring(mins from 1 for 13);"""
     else:
         print "bucketize by day"
     cur.close()
+    return new_name
+
 
 def dcube(conn, relation, k, measure):
     cur = conn.cursor()
-
-    print tuple_counts(conn, "ori_darpa")
-    drop_table(conn, "ori_darpa")
+    ori_table = bucketize(conn, relation, [], BUCKET_FLAG)
     conn.commit()
     cur.close()
 
 conn = init_database()
 a = raw_input("press to continue...\n")
-table_fresh_create_from_file(conn, "darpa", "source_ip text, dest_ip text, time_in_minutes text", "darpa.csv", False)
+table_fresh_create_from_file(conn, "darpa", "src text, dest text, mins text", "darpa.csv", False)
 # dcube(conn, "darpa", 1, None)
 print tuple_counts(conn, "darpa")
 drop_table(conn, "darpa")
