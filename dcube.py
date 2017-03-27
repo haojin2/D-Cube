@@ -165,6 +165,7 @@ def check_dimensions(conn):
     len_bucket = tuple_counts(conn, "B_bucket")
     return (len_src != 0) or (len_dest != 0) or (len_bucket != 0)
 
+
 def find_single_block(conn, R, M_R, measure, select_dimension):
     cur = conn.cursor()
     copy_table(conn, R, "B")
@@ -189,7 +190,6 @@ def find_single_block(conn, R, M_R, measure, select_dimension):
         table_fresh_create_from_query(conn, "M_B_bucket",
                                             """SELECT bucket, COUNT(*) as M FROM %s GROUP BY bucket""" % R)
         i = select_dimension(conn)
-        i = 0
         col_name = columns[i]
         table_fresh_create(conn, "order_%s" % col_name, "%s text, order int" % col_name)
         table_fresh_create_from_query(conn, "D_%s" % columns[i], "SELECT * FROM M_B_%s WHERE M <= %f ORDER BY M ASC" %
@@ -203,7 +203,6 @@ def find_single_block(conn, R, M_R, measure, select_dimension):
             cur.execute("""SELECT M FROM D_%s LIMIT 1 OFFSET %d""" % (col_name, i))
             M_B_a_i = cur.fetchone()[0]
             M_B = M_B - M_B_a_i
-            # rho_ari(conn, mb, block_attrs, mr, rel_attrs):
             rho_prime = measure(conn, M_B, M_R)
             cur.execute("INSERT INTO order_%s VALUES(%s, %d);" % (col_name, col_name, r))
             r += 1
@@ -236,7 +235,7 @@ def dcube(conn, relation, k, measure):
     results = []
     for i in range(k):
         M_R = get_mass(conn, ori_table)
-        # find_single_block(conn, "darpa", M_R, measure)
+        find_single_block(conn, "darpa", M_R, measure)
         table_fresh_create(conn, "B_src", "src text")
         table_fresh_create(conn, "B_dest", "dest text")
         table_fresh_create(conn, "B_bucket", "bucket text")
@@ -274,14 +273,17 @@ def rho_ari(conn, mb, block_attrs, mr, rel_attrs):
         temp += tuple_counts_distinct(conn, block_tb, col)
 
     return 3. * float(mb) / float(temp)
-        
+
+
 def rho_geo(conn, mb, block_attrs, mr, rel_attrs):
     temp = 1
     for col in columns:
+        block_tb = block_attrs[col]
         temp *= tuple_counts_distinct(conn, block_tb, col)
 
     return float(mb) / float(temp)**(1./3.)
-        
+
+
 def rho_susp(conn, mb, block_attrs, mr, rel_attrs):
     temp = (numpy.log(mb/mr) - 1) * mb
     temp1 = 1
