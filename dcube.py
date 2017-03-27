@@ -160,7 +160,7 @@ def check_dimensions(conn):
     len_src = tuple_counts(conn, "B_src")
     len_dest = tuple_counts(conn, "B_dest")
     len_bucket = tuple_counts(conn, "B_bucket")
-    return (len_src != 0) || (len_dest != 0) || (len_bucket != 0)
+    return (len_src != 0) or (len_dest != 0) or (len_bucket != 0)
 
 def find_single_block(conn, R, M_R, measure):
     cur = conn.cursor()
