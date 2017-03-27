@@ -26,11 +26,12 @@ def database_clearup():
 def tuple_counts(conn, name):
     cur = conn.cursor()
     try:
-        cur.execute("SELECT COUNT(*) FROM %s" % (name))
+        cur.execute("SELECT COUNT(*) FROM %s" % name)
     except psycopg2.Error:
         print "Error when getting count from %s" % name
     data = cur.fetchone()
     return data[0]
+
 
 def tuple_counts_distinct(conn, name, col):
     cur = conn.cursor()
@@ -40,6 +41,7 @@ def tuple_counts_distinct(conn, name, col):
         print "Error when getting count from %s" % name
     data = cur.fetchone()
     return data[0]
+
 
 def table_fresh_create(conn, name, columns, flag = True):
     cur = conn.cursor()
@@ -212,9 +214,7 @@ def find_single_block(conn, R, M_R, measure):
         copy_table(conn, "B_temp", "B")
         drop_table(conn, "B_temp")
     for j in range(len(columns)):
-        col_name = columns[i]
-
-
+        table_fresh_create_from_query(conn, "B_%s", "SELECT %s FROM order_%s WHERE order >= %d" % (columns[i], r_wave))
     conn.commit()
     cur.close()
 
@@ -332,7 +332,6 @@ def select_dimension_by_density(conn, block_attrs, rel_attrs, mb, mr, density_me
     return ret
 
 if __name__ == '__main__':
-
     conn = init_database()
     a = raw_input("press to continue...\n")
     table_fresh_create_from_file(conn, "darpa", "src text, dest text, mins text", "darpa.csv", False)
