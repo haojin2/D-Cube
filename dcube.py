@@ -226,48 +226,71 @@ database_clearup()
 ## dimension select algorithms ##
 
 
-def rho_ari(conn, block_tb):
-    m = get_mass(conn, block_tb)
+def rho_ari(conn, mb, block_attrs, mr, rel_attrs):
     temp = 0
     for col in columns:
-        temp += tuple_counts_distinct(conn, block_tb, col)
+        block_tb = block_attrs[col]
+        temp += tuple_count_distinct(conn, block_tb, col)
 
-    return 3. * float(m) / float(temp)
+    return 3. * float(mb) / float(temp)
         
-def rho_geo(conn, block_tb):
-    m = get_mass(conn, block_tb)
+def rho_geo(conn, mb, block_attrs, mr, rel_attrs):
     temp = 1
     for col in columns:
-        temp *= tuple_counts_distinct(conn, block_tb, col)
+        temp *= tuple_count_distinct(conn, block_tb, col)
 
-    return float(m) / float(temp)**(1./3.)
+    return float(mb) / float(temp)**(1./3.)
         
-def rho_susp(conn, block_tb, rel_tb):
-    mb = get_mass(conn, block_tb)
-    mr = get_mass(conn, rel_tb)
+def rho_susp(conn, mb, block_attrs, mr, rel_attrs):
     temp = (numpy.log(mb/mr) - 1) * mb
     temp1 = 1
     for col in columns:
-        temp1 *= tuple_counts_distinct(conn, block_tb, col)/tuple_counts_distinct(conn, rel_tb, col)
+        block_tb = bloc_attrs[col]
+        rel_tb = rel_attrs[col]
+        temp1 *= tuple_count_distinct(conn, block_tb, col)/tuple_count_distinct(conn, rel_tb, col)
     
     temp += mr * temp1
     temp -= mb * numpy.log(temp1)
 
+def filter_block(conn, tb, mass_thr):
+    cur = conn.cursor()
+    try:
+        cur.execute("DELETE FROM %s WHERE ID <= %s;" % (tb, str(mass_thr)))
+    except psycopg2.Error:
+        print "Error when filtering block %s with mass threshold %d" % (tb, mass_thr)
+    conn.commit()
+    cur.close()
 
-# def select_dimension_by_density(conn, block_tb, rel_tb, density_measure):
-#     mb = get_mass(conn, block_tb)
-#     mr = get_mass(conn, rel_tb)
-#     ret = ''
-#     max_rho = -float("inf")
-#     for col in columns:
-#         if mb == 0:
-#             continue
-#
-#         filter_block(conn, block_tb, rel_tb,
-#
-#         if rho > max_rho:
-#             max_rho = rho
-#             ret = col
-#
-#     return ret
+
+def select_dimension_by_density(conn, block_attrs, rel_attrs, mb, mr, density_measure):
+    ret = ''
+    max_rho = -float("inf")
+    for col in columns:
+        if mb == 0:
+            continue
+        
+        bi = tuple_counts_distinct(conn, block_tb, col)
+        block_attr_tb = block_attrs[col]
+        mass_thr = float(mb) / float(bi)
+        
+        temp_block_attr_tb = ""
+        copy_table(conn, block_attr_tb, temp_block_attr_tb, drop = True)
+
+        temp_block_attrs = block_attrs
+
+        # filter block 
+        filter_block(conn, temp_block_attrs, mass_thr)
+
+        temp_block_attrs[col] = temp_block_attr_tb
+        temp_mass = get_mass(conn, temp_block_attr_tb)
+
+        rho = density_measure(conn, temp_mass, block_attrs, mr, rel_attrs)
+
+        if rho > max_rho:
+            max_rho = rho
+            ret = col
+
+        drop_table(conn, temp_block_attr_tb)
+
+    return ret
 
