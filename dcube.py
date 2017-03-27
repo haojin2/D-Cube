@@ -305,7 +305,7 @@ def filter_block(conn, tb, mass_thr):
     cur.close()
 
 
-def select_dimension_by_density(conn, block_attrs, rel_attrs, mb, mr, density_measure):
+def select_dimension_by_density(conn, block_attrs, rel_attrs, mass_attrs, mb, mr, density_measure):
     ret = ''
     max_rho = -float("inf")
     for col in columns:
@@ -313,13 +313,13 @@ def select_dimension_by_density(conn, block_attrs, rel_attrs, mb, mr, density_me
             continue
         
         bi = tuple_counts_distinct(conn, block_tb, col)
-        block_attr_tb = block_attrs[col]
+        block_attr_tb = mass_attrs[col]
         mass_thr = float(mb) / float(bi)
         
         temp_block_attr_tb = ""
         copy_table(conn, block_attr_tb, temp_block_attr_tb, drop = True)
 
-        temp_block_attrs = block_attrs
+        temp_block_attrs = mass_attrs
 
         # filter block
         filter_block(conn, temp_block_attrs, mass_thr)
@@ -334,6 +334,18 @@ def select_dimension_by_density(conn, block_attrs, rel_attrs, mb, mr, density_me
             ret = col
 
         drop_table(conn, temp_block_attr_tb)
+
+    return ret
+
+def select_dimension_by_density(conn, block_attrs, rel_attrs, mass_attrs, mb, mr, density_measure):
+    ret = ''
+    max_card = float("inf")
+    for col in columns:
+        block_tb = block_attrs[col]
+        card = tuple_counts_distinct(conn, block_tb, col)
+        if card > max_card:
+            ret = col
+            max_card = card
 
     return ret
 
