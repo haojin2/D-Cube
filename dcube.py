@@ -67,6 +67,7 @@ def table_fresh_create_from_query(conn, name, query, drop = True):
     conn.commit()
     cur.close()
 
+
 def table_fresh_create_from_file(conn, name, columns, filename, flag = True):
     cur = conn.cursor()
     filename = os.path.abspath("%s" % filename)
@@ -116,7 +117,7 @@ def get_distinct_val(conn, new_tb, tb, col):
     cur.close()
 
 
-def bucketize(conn, relation, size = BUCKET_FLAG, binary = BINARY_FLAG):
+def bucketize(conn, relation, size=BUCKET_FLAG, binary=BINARY_FLAG):
     cur = conn.cursor()
     new_name = relation + "_ori"
     if size == 0:
@@ -214,7 +215,9 @@ def find_single_block(conn, R, M_R, measure):
         copy_table(conn, "B_temp", "B")
         drop_table(conn, "B_temp")
     for j in range(len(columns)):
-        table_fresh_create_from_query(conn, "B_%s", "SELECT %s FROM order_%s WHERE order >= %d" % (columns[i], r_wave))
+        table_fresh_create_from_query(conn, "B_%s", """SELECT %s
+                                                       FROM order_%s
+                                                       WHERE order >= %d""" % (columns[i], columns[i], r_wave))
     conn.commit()
     cur.close()
 
@@ -315,7 +318,7 @@ def select_dimension_by_density(conn, block_attrs, rel_attrs, mb, mr, density_me
 
         temp_block_attrs = block_attrs
 
-        # filter block 
+        # filter block
         filter_block(conn, temp_block_attrs, mass_thr)
 
         temp_block_attrs[col] = temp_block_attr_tb
