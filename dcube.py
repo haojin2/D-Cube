@@ -185,13 +185,6 @@ def dcube(conn, relation, k, measure):
     conn.commit()
     cur.close()
 
-conn = init_database()
-a = raw_input("press to continue...\n")
-table_fresh_create_from_file(conn, "darpa", "src text, dest text, mins text", "darpa.csv", False)
-dcube(conn, "darpa", 1, None)
-drop_table(conn, "darpa")
-database_clearup()
-
 
 ## dimension select algorithms ##
 
@@ -263,4 +256,13 @@ def select_dimension_by_density(conn, block_attrs, rel_attrs, mb, mr, density_me
         drop_table(conn, temp_block_attr_tb)
 
     return ret
+
+if __name__ == '__main__':
+
+    conn = init_database()
+    a = raw_input("press to continue...\n")
+    table_fresh_create_from_file(conn, "darpa", "src text, dest text, mins text", "darpa.csv", False)
+    dcube(conn, "darpa", 1, None)
+    drop_table(conn, "darpa")
+    database_clearup()
 
