@@ -6,6 +6,9 @@ import numpy
 import math
 from dcube_params import *
 
+active_tables = {}
+
+
 def init_database():
     os.system("pg_ctl -D $HOME/826prj/ -o '-k /tmp' start")
     time.sleep(1)
@@ -153,6 +156,69 @@ def get_mass(conn, block_tb):
     return float(data[0])
 
 
+def check_dimensions(conn):
+    len_src = tuple_counts(conn, "B_src")
+    len_dest = tuple_counts(conn, "B_dest")
+    len_bucket = tuple_counts(conn, "B_bucket")
+    return (len_src != 0) || (len_dest != 0) || (len_bucket != 0)
+
+def find_single_block(conn, R, M_R, measure):
+    cur = conn.cursor()
+    copy_table(conn, R, "B")
+    M_B = M_R
+    rho_wave = measure(M_B, M_R)
+    r = 1
+    r_wave = 1
+    while check_dimensions(conn):
+        table_fresh_create_from_query(conn, "B_src", """SELECT DISTINCT(src) FROM B""")
+        table_fresh_create_from_query(conn, "B_dest", """SELECT DISTINCT(dest) FROM B""")
+        table_fresh_create_from_query(conn, "B_bucket", """SELECT DISTINCT(bucket) FROM B""")
+        # table_fresh_create_from_query(conn, "M_B_src", """SELECT src, COUNT(*) as M
+        #                                                   FROM %s
+        #                                                   WHERE src IN
+        #                                                   (SELECT DISTINCT(src) FROM B_src)
+        #                                                   GROUP BY src""" % R)
+        # table_fresh_create_from_query(conn, "M_B_dest", """SELECT dest, COUNT(*) as M
+        #                                                   FROM %s
+        #                                                   WHERE dest IN
+        #                                                   (SELECT DISTINCT(dest) FROM B_dest)
+        #                                                   GROUP BY dest""" % R)
+        # table_fresh_create_from_query(conn, "M_B_bucket",
+        #                                     """SELECT bucket, COUNT(*) as M FROM %s GROUP BY bucket""" % R)
+        # i = select_dimension(conn)
+        i = 0
+        col_name = columns[i]
+        table_fresh_create(conn, "order_%s" % col_name, "%s text, order int" % col_name)
+        table_fresh_create_from_query(conn, "D_%s" % columns[i], "SELECT * FROM M_B_%s WHERE M <= %f ORDER BY M ASC" %
+                                      (col_name, M_B * 1./ tuple_counts(conn, "M_B_%s" % col_name)))
+        len_D = tuple_counts(conn, "D_%s" % col_name)
+        for j in range(len_D):
+            table_fresh_create_from_query(conn, "B_%s_temp",
+                                          """SELECT %s FROM M_B_%s
+                                             WHERE %s NOT IN (SELECT %s FROM D_%s LIMIT 1 OFFSET %d)"""
+                                          % (col_name, col_name, col_name, col_name, col_name, i))
+            cur.execute("""SELECT M FROM D_%s LIMIT 1 OFFSET %d""" % (col_name, i))
+            M_B_a_i = cur.fetchone()[0]
+            M_B_temp = M_B - M_B_a_i
+            # rho_prime = measure()
+            cur.execute("INSERT INTO order_%s VALUES(%s, %d);" % (col_name, col_name, r))
+            r += 1
+            if rho_prime > rho_wave:
+                rho_wave = rho_prime
+                r_wave = r
+        table_fresh_create_from_query(conn, "B_temp", """SELECT * FROM B
+                                                         WHERE %s NOT IN
+                                                         (SELECT %s FROM D_%s)""" % (col_name, col_name, col_name))
+        copy_table(conn, "B_temp", "B")
+        drop_table(conn, "B_temp")
+    for j in range(len(columns)):
+        col_name = columns[i]
+
+
+    conn.commit()
+    cur.close()
+
+
 def dcube(conn, relation, k, measure):
     cur = conn.cursor()
     ori_table = bucketize(conn, relation, BUCKET_FLAG)
@@ -163,8 +229,10 @@ def dcube(conn, relation, k, measure):
     print tuple_counts(conn, "R_src")
     print tuple_counts(conn, "R_dest")
     print tuple_counts(conn, "R_bucket")
+    results = []
     for i in range(k):
         M_R = get_mass(conn, ori_table)
+        # find_single_block(conn, "darpa", M_R, measure)
         table_fresh_create(conn, "B_src", "src text")
         table_fresh_create(conn, "B_dest", "dest text")
         table_fresh_create(conn, "B_bucket", "bucket text")
@@ -174,6 +242,12 @@ def dcube(conn, relation, k, measure):
                                                        OR bucket NOT IN (SELECT bucket FROM B_bucket)""")
         copy_table(conn, "temp", "darpa")
         print get_mass(conn, "darpa")
+        table_fresh_create_from_query(conn, "B_ori_%d" % i,
+                                      """SELECT * FROM %s
+                                         WHERE src IN (SELECT src FROM B_src)
+                                         OR dest IN (SELECT dest FROM B_dest)
+                                         OR bucket IN (SELECT bucket FROM B_bucket)""" % ori_table)
+        results.append("B_ori_%d" % i)
         drop_table(conn, "B_src")
         drop_table(conn, "B_dest")
         drop_table(conn, "B_bucket")
