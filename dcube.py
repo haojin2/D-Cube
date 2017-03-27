@@ -337,7 +337,7 @@ def select_dimension_by_density(conn, block_attrs, rel_attrs, mass_attrs, mb, mr
 
     return ret
 
-def select_dimension_by_density(conn, block_attrs, rel_attrs, mass_attrs, mb, mr, density_measure):
+def select_dimension_by_cardinality(conn, block_attrs, rel_attrs, mass_attrs, mb, mr, density_measure):
     ret = ''
     max_card = float("inf")
     for col in columns:
