@@ -153,6 +153,28 @@ def get_mass(conn, block_tb):
     return float(data[0])
 
 
+def check_dimensions(conn):
+    len_src = tuple_counts(conn, "B_src")
+    len_dest = tuple_counts(conn, "B_dest")
+    len_bucket = tuple_counts(conn, "B_bucket")
+    return (len_src != 0) || (len_dest != 0) || (len_bucket != 0)
+
+def find_single_block(conn, R, M_R, measure):
+    cur = conn.cursor()
+    copy_table(conn, R, "B")
+    M_B = M_R
+    copy_table(conn, "R_src", "B_src")
+    copy_table(conn, "R_dest", "B_dest")
+    copy_table(conn, "R_bucket", "B_bucket")
+    rho_wave = measure(M_B, M_R)
+    r = 1
+    r_wave = 1
+    while check_dimensions(conn):
+        # i = select_dimension(conn)
+    conn.commit()
+    cur.close()
+
+
 def dcube(conn, relation, k, measure):
     cur = conn.cursor()
     ori_table = bucketize(conn, relation, BUCKET_FLAG)
@@ -163,8 +185,10 @@ def dcube(conn, relation, k, measure):
     print tuple_counts(conn, "R_src")
     print tuple_counts(conn, "R_dest")
     print tuple_counts(conn, "R_bucket")
+    results = []
     for i in range(k):
         M_R = get_mass(conn, ori_table)
+        # find_single_block(conn, "darpa", M_R, measure)
         table_fresh_create(conn, "B_src", "src text")
         table_fresh_create(conn, "B_dest", "dest text")
         table_fresh_create(conn, "B_bucket", "bucket text")
@@ -174,6 +198,12 @@ def dcube(conn, relation, k, measure):
                                                        OR bucket NOT IN (SELECT bucket FROM B_bucket)""")
         copy_table(conn, "temp", "darpa")
         print get_mass(conn, "darpa")
+        table_fresh_create_from_query(conn, "B_ori_%d" % i,
+                                      """SELECT * FROM %s
+                                         WHERE src IN (SELECT src FROM B_src)
+                                         OR dest IN (SELECT dest FROM B_dest)
+                                         OR bucket IN (SELECT bucket FROM B_bucket)""" % ori_table)
+        results.append("B_ori_%d" % i)
         drop_table(conn, "B_src")
         drop_table(conn, "B_dest")
         drop_table(conn, "B_bucket")
