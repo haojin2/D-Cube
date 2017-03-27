@@ -165,7 +165,7 @@ def check_dimensions(conn):
     len_bucket = tuple_counts(conn, "B_bucket")
     return (len_src != 0) or (len_dest != 0) or (len_bucket != 0)
 
-def find_single_block(conn, R, M_R, measure):
+def find_single_block(conn, R, M_R, measure, select_dimension):
     cur = conn.cursor()
     copy_table(conn, R, "B")
     M_B = M_R
@@ -176,19 +176,19 @@ def find_single_block(conn, R, M_R, measure):
         table_fresh_create_from_query(conn, "B_src", """SELECT DISTINCT(src) FROM B""")
         table_fresh_create_from_query(conn, "B_dest", """SELECT DISTINCT(dest) FROM B""")
         table_fresh_create_from_query(conn, "B_bucket", """SELECT DISTINCT(bucket) FROM B""")
-        # table_fresh_create_from_query(conn, "M_B_src", """SELECT src, COUNT(*) as M
-        #                                                   FROM %s
-        #                                                   WHERE src IN
-        #                                                   (SELECT DISTINCT(src) FROM B_src)
-        #                                                   GROUP BY src""" % R)
-        # table_fresh_create_from_query(conn, "M_B_dest", """SELECT dest, COUNT(*) as M
-        #                                                   FROM %s
-        #                                                   WHERE dest IN
-        #                                                   (SELECT DISTINCT(dest) FROM B_dest)
-        #                                                   GROUP BY dest""" % R)
-        # table_fresh_create_from_query(conn, "M_B_bucket",
-        #                                     """SELECT bucket, COUNT(*) as M FROM %s GROUP BY bucket""" % R)
-        # i = select_dimension(conn)
+        table_fresh_create_from_query(conn, "M_B_src", """SELECT src, COUNT(*) as M
+                                                          FROM %s
+                                                          WHERE src IN
+                                                          (SELECT DISTINCT(src) FROM B_src)
+                                                          GROUP BY src""" % R)
+        table_fresh_create_from_query(conn, "M_B_dest", """SELECT dest, COUNT(*) as M
+                                                          FROM %s
+                                                          WHERE dest IN
+                                                          (SELECT DISTINCT(dest) FROM B_dest)
+                                                          GROUP BY dest""" % R)
+        table_fresh_create_from_query(conn, "M_B_bucket",
+                                            """SELECT bucket, COUNT(*) as M FROM %s GROUP BY bucket""" % R)
+        i = select_dimension(conn)
         i = 0
         col_name = columns[i]
         table_fresh_create(conn, "order_%s" % col_name, "%s text, order int" % col_name)
@@ -202,8 +202,9 @@ def find_single_block(conn, R, M_R, measure):
                                           % (col_name, col_name, col_name, col_name, col_name, i))
             cur.execute("""SELECT M FROM D_%s LIMIT 1 OFFSET %d""" % (col_name, i))
             M_B_a_i = cur.fetchone()[0]
-            M_B_temp = M_B - M_B_a_i
-            # rho_prime = measure()
+            M_B = M_B - M_B_a_i
+            # rho_ari(conn, mb, block_attrs, mr, rel_attrs):
+            rho_prime = measure(conn, M_B, M_R)
             cur.execute("INSERT INTO order_%s VALUES(%s, %d);" % (col_name, col_name, r))
             r += 1
             if rho_prime > rho_wave:
@@ -270,14 +271,14 @@ def rho_ari(conn, mb, block_attrs, mr, rel_attrs):
     temp = 0
     for col in columns:
         block_tb = block_attrs[col]
-        temp += tuple_count_distinct(conn, block_tb, col)
+        temp += tuple_counts_distinct(conn, block_tb, col)
 
     return 3. * float(mb) / float(temp)
         
 def rho_geo(conn, mb, block_attrs, mr, rel_attrs):
     temp = 1
     for col in columns:
-        temp *= tuple_count_distinct(conn, block_tb, col)
+        temp *= tuple_counts_distinct(conn, block_tb, col)
 
     return float(mb) / float(temp)**(1./3.)
         
@@ -285,9 +286,9 @@ def rho_susp(conn, mb, block_attrs, mr, rel_attrs):
     temp = (numpy.log(mb/mr) - 1) * mb
     temp1 = 1
     for col in columns:
-        block_tb = bloc_attrs[col]
+        block_tb = block_attrs[col]
         rel_tb = rel_attrs[col]
-        temp1 *= tuple_count_distinct(conn, block_tb, col)/tuple_count_distinct(conn, rel_tb, col)
+        temp1 *= tuple_counts_distinct(conn, block_tb, col)/tuple_counts_distinct(conn, rel_tb, col)
     
     temp += mr * temp1
     temp -= mb * numpy.log(temp1)
