@@ -365,7 +365,7 @@ def dcube(conn, relation, k, measure, select_dimension):
 if __name__ == '__main__':
     conn = init_database()
     a = raw_input("press to continue...\n")
-    table_fresh_create_from_file(conn, "darpa", "src text, dest text, mins text", "darpa.csv", False)
+    table_fresh_create_from_file(conn, "darpa", "src text, dest text, mins text", "darpa.csv", True)
     results = dcube(conn, "darpa", 1, rho_ari, select_dimension_by_density)
     drop_table(conn, "darpa")
     database_clearup()
