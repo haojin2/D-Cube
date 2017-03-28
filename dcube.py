@@ -82,11 +82,7 @@ def table_fresh_create_from_file(conn, name, columns, filename, flag = True):
 def copy_table(conn, src, cpy, drop = True):
     cur = conn.cursor()
     if drop:
-        try:
-            cur.execute("DROP TABLE %s;" % cpy)
-        except psycopg2.Error:
-            conn.commit()
-            pass
+        drop_table(conn, cpy)
     try:
         cur.execute("CREATE TABLE %s AS TABLE %s;" % (cpy, src))
     except psycopg2.Error:
