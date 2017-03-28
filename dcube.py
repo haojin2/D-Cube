@@ -225,10 +225,10 @@ def select_dimension_by_density(conn, block_attrs, rel_attrs, mass_attrs, mb, mr
         temp_block_attr_tb = "temptable"
         copy_table(conn, block_attr_tb, temp_block_attr_tb, drop=True)
 
-        temp_block_attrs = mass_attrs[col]
+        temp_block_attrs = {}
 
         # filter block
-        filter_block(conn, temp_block_attrs, mass_thr)
+        filter_block(conn, temp_block_attr_tb, mass_thr)
 
         temp_block_attrs[col] = temp_block_attr_tb
         temp_mass = get_mass(conn, temp_block_attr_tb)
