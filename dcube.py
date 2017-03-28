@@ -168,7 +168,7 @@ def rho_ari(conn, mb, block_attrs, mr, rel_attrs):
 
     # return 1
     if temp == 0:
-        return float('inf')
+        return -float('inf')
     return 3. * float(mb) / float(temp)
 
 
@@ -178,7 +178,7 @@ def rho_geo(conn, mb, block_attrs, mr, rel_attrs):
         block_tb = block_attrs[col]
         temp *= block_tb
     if temp == 0:
-        return float('inf')
+        return -float('inf')
     return float(mb) / float(temp) ** (1. / 3.)
 
 
@@ -192,7 +192,7 @@ def rho_susp(conn, mb, block_attrs, mr, rel_attrs):
 
     temp += mr * temp1
     if temp1 == 0:
-        return float('inf')
+        return -float('inf')
     temp -= mb * numpy.log(temp1)
     return temp
 
@@ -310,7 +310,7 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
         cur.execute("CREATE INDEX idx_col_%s ON D_%s(%s)" % (col_name, col_name, col_name))
         len_D = tuple_counts(conn, "D_%s" % col_name)
         for j in range(len_D):
-            print j, len_D
+            #print j, len_D
             cur.execute("""SELECT * FROM D_%s LIMIT 1 OFFSET %d""" % (col_name, j))
             attr_name, M_B_a_i, = cur.fetchone()
             #print "Before DELETE: ", tuple_counts_distinct(conn, "B_%s" % col_name, col_name)
@@ -357,12 +357,15 @@ def dcube(conn, relation, k, measure, select_dimension):
 
     results = []
     for i in range(k):
+
         table_fresh_create_from_query(conn, "R_src", """SELECT DISTINCT(src) FROM darpa""")
         table_fresh_create_from_query(conn, "R_dest", """SELECT DISTINCT(dest) FROM darpa""")
         table_fresh_create_from_query(conn, "R_bucket", """SELECT DISTINCT(bucket) FROM darpa""")
         for col in columns:
             R_n[col] = tuple_counts(conn, "R_%s" % col)
+
         M_R = get_mass(conn, "darpa")
+        print M_R, R_n
         find_single_block(conn, "darpa", M_R, measure, select_dimension)
         table_fresh_create_from_query(conn, "temp", """SELECT * FROM darpa
                                                        WHERE src NOT IN (SELECT src FROM B_src)
@@ -389,7 +392,7 @@ def dcube(conn, relation, k, measure, select_dimension):
 
 if __name__ == '__main__':
     conn = init_database()
-    a = raw_input("press to continue...\n")
+    #a = raw_input("press to continue...\n")
     table_fresh_create_from_file(conn, "darpa", "src text, dest text, mins text", "darpa.csv", True)
     results = dcube(conn, "darpa", 3, rho_geo, select_dimension_by_density)
     drop_table(conn, "darpa")
