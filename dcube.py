@@ -348,13 +348,14 @@ def dcube(conn, relation, k, measure, select_dimension):
     cur = conn.cursor()
     ori_table = bucketize(conn, relation)
     copy_table(conn, ori_table, "darpa")
-    table_fresh_create_from_query(conn, "R_src", """SELECT DISTINCT(src) FROM darpa""")
-    table_fresh_create_from_query(conn, "R_dest", """SELECT DISTINCT(dest) FROM darpa""")
-    table_fresh_create_from_query(conn, "R_bucket", """SELECT DISTINCT(bucket) FROM darpa""")
-    for col in columns:
-        R_n[col] = tuple_counts(conn, "R_%s" % col)
+
     results = []
     for i in range(k):
+        table_fresh_create_from_query(conn, "R_src", """SELECT DISTINCT(src) FROM darpa""")
+        table_fresh_create_from_query(conn, "R_dest", """SELECT DISTINCT(dest) FROM darpa""")
+        table_fresh_create_from_query(conn, "R_bucket", """SELECT DISTINCT(bucket) FROM darpa""")
+        for col in columns:
+            R_n[col] = tuple_counts(conn, "R_%s" % col)
         M_R = get_mass(conn, "darpa")
         find_single_block(conn, "darpa", M_R, measure, select_dimension)
         table_fresh_create_from_query(conn, "temp", """SELECT * FROM darpa
