@@ -317,6 +317,7 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
                 if rho_prime > rho_wave:
                     rho_wave = rho_prime
                     r_wave = r
+                    print "rho prime is ", rho_prime, " in", r
             else:
                 cur.execute("INSERT INTO order_%s VALUES('%s', %d);" % (col_name, attr_name, r))
 
@@ -331,6 +332,7 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
         drop_table(conn, "B_temp")
         print 'NB is ', tuple_counts(conn, "B")
         drop_table(conn, "D_%s" % col_name)
+        print "R WAVE IS ", r_wave
 
     for col in columns:
         table_fresh_create_from_query(conn, "B_%s" % col, """SELECT %s
@@ -364,8 +366,8 @@ def dcube(conn, relation, k, measure, select_dimension):
         table_fresh_create_from_query(conn, "B_ori_%d" % i,
                                       """SELECT * FROM %s
                                          WHERE src IN (SELECT src FROM B_src)
-                                         OR dest IN (SELECT dest FROM B_dest)
-                                         OR bucket IN (SELECT bucket FROM B_bucket)""" % ori_table)
+                                         AND dest IN (SELECT dest FROM B_dest)
+                                         AND bucket IN (SELECT bucket FROM B_bucket)""" % ori_table)
         results.append("B_ori_%d" % i)
         drop_table(conn, "temp")
     drop_table(conn, "R_bucket")
@@ -383,5 +385,5 @@ if __name__ == '__main__':
     table_fresh_create_from_file(conn, "darpa", "src text, dest text, mins text", "darpa.csv", True)
     results = dcube(conn, "darpa", 1, rho_ari, select_dimension_by_density)
     drop_table(conn, "darpa")
-    database_clearup()
+    #database_clearup()
 
