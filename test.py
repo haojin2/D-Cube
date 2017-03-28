@@ -60,6 +60,81 @@ class TestAlg4(unittest.TestCase):
         self.assertEqual(count, 4)
         drop_table(self.conn, "testdistinctcount")
 
+    def test_rho(self):
+        print "===============test_rho==================="
+        table_fresh_create(self.conn, "testsrc", "src text")
+        table_fresh_create(self.conn, "testdest", "dest text")
+        table_fresh_create(self.conn, "testbucket", "bucket text")
+        table_fresh_create(self.conn, "testrelsrc", "src text")
+        table_fresh_create(self.conn, "testreldest", "dest text")
+        table_fresh_create(self.conn, "testrelbucket", "bucket text")
+        cur = self.conn.cursor()
+        cur.execute("INSERT INTO testsrc (src) VALUES ('0.0.0.0');")
+        cur.execute("INSERT INTO testsrc (src) VALUES ('0.0.0.1');")
+        cur.execute("INSERT INTO testsrc (src) VALUES ('0.0.0.2');")
+        cur.execute("INSERT INTO testsrc (src) VALUES ('0.0.0.3');")
+        cur.execute("INSERT INTO testsrc (src) VALUES ('0.0.0.4');")
+        cur.execute("INSERT INTO testsrc (src) VALUES ('0.0.0.5');")
+        cur.execute("INSERT INTO testsrc (src) VALUES ('0.0.0.6');")
+        cur.execute("INSERT INTO testsrc (src) VALUES ('0.0.0.7');")
+
+        cur.execute("INSERT INTO testdest (dest) VALUES ('0.0.0.0');")
+        cur.execute("INSERT INTO testdest (dest) VALUES ('0.0.0.1');")
+        cur.execute("INSERT INTO testdest (dest) VALUES ('0.0.0.2');")
+        cur.execute("INSERT INTO testdest (dest) VALUES ('0.0.0.3');")
+
+        cur.execute("INSERT INTO testbucket (bucket) VALUES (4);")
+        cur.execute("INSERT INTO testbucket (bucket) VALUES (0);")
+
+        cur.execute("INSERT INTO testrelsrc (src) VALUES ('0.0.0.0');")
+        cur.execute("INSERT INTO testrelsrc (src) VALUES ('0.0.0.1');")
+        cur.execute("INSERT INTO testrelsrc (src) VALUES ('0.0.0.2');")
+        cur.execute("INSERT INTO testrelsrc (src) VALUES ('0.0.0.3');")
+        cur.execute("INSERT INTO testrelsrc (src) VALUES ('0.0.0.4');")
+        cur.execute("INSERT INTO testrelsrc (src) VALUES ('0.0.0.5');")
+        cur.execute("INSERT INTO testrelsrc (src) VALUES ('0.0.0.6');")
+        cur.execute("INSERT INTO testrelsrc (src) VALUES ('0.0.0.7');")
+        cur.execute("INSERT INTO testrelsrc (src) VALUES ('1.0.0.0');")
+        cur.execute("INSERT INTO testrelsrc (src) VALUES ('1.0.0.1');")
+        cur.execute("INSERT INTO testrelsrc (src) VALUES ('1.0.0.2');")
+        cur.execute("INSERT INTO testrelsrc (src) VALUES ('1.0.0.3');")
+
+
+        cur.execute("INSERT INTO testreldest (dest) VALUES ('0.0.0.0');")
+        cur.execute("INSERT INTO testreldest (dest) VALUES ('0.0.0.1');")
+        cur.execute("INSERT INTO testreldest (dest) VALUES ('0.0.0.2');")
+        cur.execute("INSERT INTO testreldest (dest) VALUES ('0.0.0.3');")
+        cur.execute("INSERT INTO testreldest (dest) VALUES ('1.0.0.0');")
+        cur.execute("INSERT INTO testreldest (dest) VALUES ('1.0.0.1');")
+        cur.execute("INSERT INTO testreldest (dest) VALUES ('1.0.0.2');")
+        cur.execute("INSERT INTO testreldest (dest) VALUES ('1.0.0.3');")
+
+        cur.execute("INSERT INTO testrelbucket (bucket) VALUES (4);")
+        cur.execute("INSERT INTO testrelbucket (bucket) VALUES (0);")
+        cur.execute("INSERT INTO testrelbucket (bucket) VALUES (1);")
+        cur.execute("INSERT INTO testrelbucket (bucket) VALUES (2);")
+        cur.execute("INSERT INTO testrelbucket (bucket) VALUES (3);")
+        cur.execute("INSERT INTO testrelbucket (bucket) VALUES (5);")
+        cur.execute("INSERT INTO testrelbucket (bucket) VALUES (6);")
+        cur.execute("INSERT INTO testrelbucket (bucket) VALUES (7);")
+
+        self.conn.commit()
+        cur.close()
+        block_attrs = {"src":"testsrc", "dest":"testdest", "bucket":"testbucket"}
+        rel_attrs = {"src":"testrelsrc", "dest":"testreldest", "bucket":"testrelbucket"}
+        rho1 = rho_ari(self.conn, 7., block_attrs, 10., {})
+        rho2 = rho_geo(self.conn, 10., block_attrs, 10., {})
+        rho3 = rho_susp(self.conn, 7., block_attrs, 10., rel_attrs)
+        rho3_correct = 7.*(math.log(7./10.)-1) - 7.*math.log(1./12.) + 10*(1./12.)
+
+        drop_table(self.conn, "testsrc")
+        drop_table(self.conn, "testdest")
+        drop_table(self.conn, "testbucket")
+        self.assertTrue(abs(rho1-1.5) < 1e-8)
+        self.assertTrue(abs(rho2-2.5) < 1e-8)
+        print rho3_correct, rho3
+        self.assertTrue(abs(rho3-rho3_correct) < 1e-8)
+
     def tearDown(self):
         drop_table(self.conn, "testalg4")
         self.conn.close()
