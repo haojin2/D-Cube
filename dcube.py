@@ -35,6 +35,7 @@ def tuple_counts(conn, name):
 
 
 def tuple_counts_distinct(conn, name, col):
+    print "tuple counts distinct", name, col
     cur = conn.cursor()
     try:
         cur.execute("SELECT COUNT (DISTINCT %s) FROM %s" % (col, name))
