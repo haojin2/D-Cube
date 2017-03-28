@@ -35,7 +35,7 @@ def tuple_counts(conn, name):
 
 
 def tuple_counts_distinct(conn, name, col):
-    print "tuple counts distinct", name, col
+    #print "tuple counts distinct", name, col
     cur = conn.cursor()
     try:
         cur.execute("SELECT COUNT (DISTINCT %s) FROM %s" % (col, name))
@@ -202,7 +202,7 @@ def filter_block(conn, tb, mass_thr):
 
 
 def select_dimension_by_density(conn, block_attrs, rel_attrs, mass_attrs, mb, mr, density_measure):
-    print "select dimension by density"
+    #print "select dimension by density"
     ret = ''
     max_rho = -float("inf")
     for col in columns:
@@ -211,7 +211,7 @@ def select_dimension_by_density(conn, block_attrs, rel_attrs, mass_attrs, mb, mr
         if bi == 0:
             continue
         block_attr_tb = mass_attrs[col]
-        print block_attr_tb
+        #print block_attr_tb
         mass_thr = float(mb) / float(bi)
 
         temp_block_attr_tb = "temptable"
@@ -228,15 +228,18 @@ def select_dimension_by_density(conn, block_attrs, rel_attrs, mass_attrs, mb, mr
         temp_block_attrs_size = {}
 
         temp_sum_size = 0
+        temp_geo_size = 1
 
         for col1 in columns:
             temp_block_attrs_size[col1] = tuple_counts_distinct(conn, temp_block_attrs[col1], col1)
             temp_sum_size += temp_block_attrs_size[col1]
+            temp_geo_size *= temp_block_attrs_size[col1]
 
-        if temp_sum_size == 0:
+        if temp_sum_size == 0 or temp_geo_size == 0:
             return col
         
 
+        print temp_block_attrs_size
         rho = density_measure(conn, temp_mass, temp_block_attrs_size, mr, rel_attrs)
 
         if rho > max_rho:
@@ -281,34 +284,34 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
     r = 1
     r_wave = 1
     while check_dimensions(conn):
-        print "check dimensions"
+        #print "check dimensions"
         for col in columns:
             # CREATE TABLE t_c AS (SELECT t_b.id, CASE WHEN SUM(t_a.val) is NULL THEN 0 ELSE SUM(t_a.val) END AS cnt FROM t_a RIGHT JOIN t_b ON t_a.id = t_b.id GROUP BY t_b.id);
-            print "B_%s count:" % col, tuple_counts(conn, "B_%s" % col)
+            #print "B_%s count:" % col, tuple_counts(conn, "B_%s" % col)
             table_fresh_create_from_query(conn, "M_B_%s" % col,
                                           """SELECT B_%s.%s, CASE WHEN SUM(B.cnt) is NULL THEN 0 ELSE SUM(B.cnt) END AS cnt
                                               FROM B RIGHT JOIN B_%s ON B.%s = B_%s.%s
                                               GROUP BY B_%s.%s ORDER BY cnt ASC""" % (col, col, col, col, col, col, col, col))
-            print "M_B_%s count:" % col, tuple_counts(conn, "M_B_%s" % col)
+            #print "M_B_%s count:" % col, tuple_counts(conn, "M_B_%s" % col)
 
         col_name = select_dimension(conn, {"src": "B_src", "dest": "B_dest", "bucket": "B_bucket"},
                              R_n, {"src": "M_B_src", "dest": "M_B_dest", "bucket": "M_B_bucket"},
                              M_B, M_R, measure)
-        print "selected: ", col_name
+        #print "selected: ", col_name
         table_fresh_create_from_query(conn, "D_%s" % col_name,
                                       "SELECT * FROM M_B_%s WHERE cnt <= %f ORDER BY cnt ASC" %
                                        (col_name, M_B * 1. / tuple_counts(conn, "B_%s" % col_name)))
         cur.execute("CREATE INDEX idx_col_%s ON D_%s(%s)" % (col_name, col_name, col_name))
         len_D = tuple_counts(conn, "D_%s" % col_name)
         for j in range(len_D):
-            # print j, len_D
+            print j, len_D
             cur.execute("""SELECT * FROM D_%s LIMIT 1 OFFSET %d""" % (col_name, j))
             attr_name, M_B_a_i, = cur.fetchone()
             #print "Before DELETE: ", tuple_counts_distinct(conn, "B_%s" % col_name, col_name)
             cur.execute("DELETE FROM B_%s WHERE %s = '%s'" % (col_name, col_name, attr_name))
             #print "After DELETE: ", tuple_counts_distinct(conn, "B_%s" % col_name, col_name)
             B_n[col_name] -= 1
-            print 'bncol ', B_n[col_name]
+            #print 'bncol ', B_n[col_name]
             M_B = M_B - M_B_a_i
             if sum(B_n.values()) > 0:
                 rho_prime = measure(conn, M_B, B_n, M_R, R_n)
@@ -317,22 +320,22 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
                 if rho_prime > rho_wave:
                     rho_wave = rho_prime
                     r_wave = r
-                    print "rho prime is ", rho_prime, " in", r
+                    #print "rho prime is ", rho_prime, " in", r
             else:
                 cur.execute("INSERT INTO order_%s VALUES('%s', %d);" % (col_name, attr_name, r))
 
         conn.commit()
         cur.execute("CREATE INDEX idx_B_%s ON B(%s);" % (col_name, col_name))
-        print "after index creation"
+        #print "after index creation"
         table_fresh_create_from_query(conn, "B_temp", """SELECT * FROM B
                                                          WHERE %s NOT IN
                                                          (SELECT %s FROM D_%s)""" % (col_name, col_name, col_name))
-        print "after computing new B"
+        #print "after computing new B"
         copy_table(conn, "B_temp", "B")
         drop_table(conn, "B_temp")
-        print 'NB is ', tuple_counts(conn, "B")
+        #print 'NB is ', tuple_counts(conn, "B")
         drop_table(conn, "D_%s" % col_name)
-        print "R WAVE IS ", r_wave
+        #print "R WAVE IS ", r_wave
 
     for col in columns:
         table_fresh_create_from_query(conn, "B_%s" % col, """SELECT %s
@@ -362,7 +365,7 @@ def dcube(conn, relation, k, measure, select_dimension):
                                                        OR dest NOT IN (SELECT dest FROM B_dest)
                                                        OR bucket NOT IN (SELECT bucket FROM B_bucket)""")
         copy_table(conn, "temp", "darpa")
-        print get_mass(conn, "darpa")
+        #print get_mass(conn, "darpa")
         table_fresh_create_from_query(conn, "B_ori_%d" % i,
                                       """SELECT * FROM %s
                                          WHERE src IN (SELECT src FROM B_src)
@@ -383,7 +386,7 @@ if __name__ == '__main__':
     conn = init_database()
     a = raw_input("press to continue...\n")
     table_fresh_create_from_file(conn, "darpa", "src text, dest text, mins text", "darpa.csv", True)
-    results = dcube(conn, "darpa", 1, rho_ari, select_dimension_by_density)
+    results = dcube(conn, "darpa", 1, rho_geo, select_dimension_by_density)
     drop_table(conn, "darpa")
     #database_clearup()
 
