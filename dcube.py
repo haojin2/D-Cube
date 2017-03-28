@@ -370,6 +370,7 @@ def dcube(conn, relation, k, measure, select_dimension):
                                          AND bucket IN (SELECT bucket FROM B_bucket)""" % ori_table)
         results.append("B_ori_%d" % i)
         drop_table(conn, "temp")
+        conn.commit()
     drop_table(conn, "R_bucket")
     drop_table(conn, "R_dest")
     drop_table(conn, "R_src")
