@@ -47,11 +47,7 @@ def tuple_counts_distinct(conn, name, col):
 def table_fresh_create(conn, name, columns, flag = True):
     cur = conn.cursor()
     if flag:
-        try:
-            cur.execute("DROP TABLE %s;" % name)
-        except psycopg2.Error:
-            conn.commit()
-            pass
+        drop_table(conn, name)
     try:
         cur.execute("CREATE TABLE %s (%s);" % (name, columns))
     except psycopg2.Error:
