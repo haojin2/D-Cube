@@ -11,7 +11,7 @@ active_tables = {}
 R_n = {"src": 0, "dest": 0, "bucket": 0}
 
 def init_database():
-    os.system("pg_ctl -D $HOME/826prj/ -o '-k /tmp' start")
+    os.system("pg_ctl -D $HOME/826prj/ -o '-k /tmp' -l logfile start")
     time.sleep(1)
     username = os.environ['USER']
     conn = psycopg2.connect(dbname=username, user=username, password="", port=PGPORT)
@@ -29,18 +29,20 @@ def tuple_counts(conn, name):
     try:
         cur.execute("SELECT COUNT(*) FROM %s" % name)
     except psycopg2.Error:
-        print "Error when getting count from %s" % name
+        #print "Error when getting count from %s" % name
+        pass
     data = cur.fetchone()
     return data[0]
 
 
 def tuple_counts_distinct(conn, name, col):
-    #print "tuple counts distinct", name, col
+    ##print "tuple counts distinct", name, col
     cur = conn.cursor()
     try:
         cur.execute("SELECT COUNT (DISTINCT %s) FROM %s" % (col, name))
     except psycopg2.Error:
-        print "Error when getting count from %s" % name
+        #print "Error when getting count from %s" % name
+        pass
     data = cur.fetchone()
     return data[0]
 
@@ -53,7 +55,8 @@ def table_fresh_create(conn, name, columns, flag = True):
         # CREATE TABLE table_name (column1 datatype, column2 datatype, column3 datatype);
         cur.execute("CREATE TABLE %s (%s);" % (name, columns))
     except psycopg2.Error:
-        print "Error when Create %s" % name
+        #print "Error when Create %s" % name
+        pass
     conn.commit()
     cur.close()
 
@@ -74,7 +77,8 @@ def table_fresh_create_from_file(conn, name, columns, filename, flag = True):
     try:
         cur.execute("COPY %s FROM '%s' DELIMITER ',' CSV;" % (name, filename))
     except psycopg2.Error:
-        print "Error when COPY %s FROM %s" % (name, filename)
+        #print "Error when COPY %s FROM %s" % (name, filename)
+        pass
 
     conn.commit()
     cur.close()
@@ -87,7 +91,8 @@ def copy_table(conn, src, cpy, drop = True):
     try:
         cur.execute("CREATE TABLE %s AS TABLE %s;" % (cpy, src))
     except psycopg2.Error:
-        print "Error when copying %s to %s" % (src, cpy)
+        #print "Error when copying %s to %s" % (src, cpy)
+        pass
     conn.commit()
     cur.close()
 
@@ -97,7 +102,8 @@ def drop_table(conn, tb):
     try:
         cur.execute("DROP TABLE %s;" % tb)
     except psycopg2.Error:
-        print "Error when dropping %s" % tb
+        #print "Error when dropping %s" % tb
+        pass
     conn.commit()
     cur.close()
 
@@ -107,7 +113,8 @@ def get_distinct_val(conn, new_tb, tb, col):
     try:
         cur.execute("CREATE TABLE %s AS SELECT DISTINCT %s FROM %s;" % (new_tb, col, tb))
     except psycopg2.Error:
-        print "Error in get_distinct_val on table %s col %s" % (tb, col)
+        #print "Error in get_distinct_val on table %s col %s" % (tb, col)
+        pass
     conn.commit()
     cur.close()
 
@@ -117,7 +124,7 @@ def bucketize(conn, relation, size=BUCKET_FLAG, binary=BINARY_FLAG):
     new_name = relation + "_ori"
     drop_table(conn, new_name)
     if size == 0:
-        print "bucketize by hour"
+        #print "bucketize by hour"
         if binary == 0:
             cur.execute("""
                         CREATE TABLE %s AS (
@@ -129,7 +136,7 @@ def bucketize(conn, relation, size=BUCKET_FLAG, binary=BINARY_FLAG):
                         SELECT src, dest, substring(mins from 1 for 13) as bucket, 1 as cnt FROM darpa GROUP BY src, dest, substring(mins from 1 for 13));
                         """ % new_name)
     else:
-        print "bucketize by day"
+        #print "bucketize by day"
         if binary == 0:
             cur.execute("""
                         CREATE TABLE %s AS (
@@ -150,7 +157,8 @@ def get_mass(conn, block_tb):
     try:
         cur.execute("SELECT SUM(cnt) FROM %s" % block_tb)
     except psycopg2.Error:
-        print "Error when getting count from %s" % block_tb
+        #print "Error when getting count from %s" % block_tb
+        pass
     data = cur.fetchone()
     if data[0] is None:
         return 0.
@@ -168,7 +176,7 @@ def rho_ari(conn, mb, block_attrs, mr, rel_attrs):
 
     # return 1
     if temp == 0:
-        return -float('inf')
+        return -1.
     return 3. * float(mb) / float(temp)
 
 
@@ -178,11 +186,13 @@ def rho_geo(conn, mb, block_attrs, mr, rel_attrs):
         block_tb = block_attrs[col]
         temp *= block_tb
     if temp == 0:
-        return -float('inf')
+        return -1.
     return float(mb) / float(temp) ** (1. / 3.)
 
 
 def rho_susp(conn, mb, block_attrs, mr, rel_attrs):
+    if (mr == 0):
+        return -1
     temp = (numpy.log(mb / mr) - 1) * mb
     temp1 = 1.
     for col in columns:
@@ -192,7 +202,7 @@ def rho_susp(conn, mb, block_attrs, mr, rel_attrs):
 
     temp += mr * temp1
     if temp1 == 0:
-        return -float('inf')
+        return -1.
     temp -= mb * numpy.log(temp1)
     return temp
 
@@ -202,7 +212,8 @@ def filter_block(conn, tb, mass_thr):
     try:
         cur.execute("DELETE FROM %s WHERE cnt <= %f;" % (tb, mass_thr))
     except psycopg2.Error:
-        print "Error when filtering block %s with mass threshold %d" % (tb, mass_thr)
+        #print "Error when filtering block %s with mass threshold %d" % (tb, mass_thr)
+        pass
     conn.commit()
     cur.close()
 
@@ -241,14 +252,16 @@ def select_dimension_by_density(conn, block_attrs, rel_attrs, mass_attrs, mb, mr
             temp_sum_size += temp_block_attrs_size[col1]
             temp_geo_size *= temp_block_attrs_size[col1]
 
-        if temp_sum_size == 0 or temp_geo_size == 0:
-            return col
+        #if temp_sum_size == 0 or temp_geo_size == 0:
+        #    return col
         
 
-        print temp_block_attrs_size
+        #print temp_block_attrs_size
         rho = density_measure(conn, temp_mass, temp_block_attrs_size, mr, rel_attrs)
 
-        if rho > max_rho:
+        print rho, "x", max_rho, "x", col
+
+        if rho >= max_rho:
             max_rho = rho
             ret = col
 
@@ -259,14 +272,17 @@ def select_dimension_by_density(conn, block_attrs, rel_attrs, mass_attrs, mb, mr
 
 def select_dimension_by_cardinality(conn, block_attrs, rel_attrs, mass_attrs, mb, mr, density_measure):
     ret = ''
-    max_card = float("inf")
+    max_card = -float("inf")
+    print block_attrs
     for col in columns:
         block_tb = block_attrs[col]
         card = tuple_counts_distinct(conn, block_tb, col)
-        if card > max_card:
+        print card
+        if card >= max_card:
             ret = col
             max_card = card
 
+    print ret
     return ret
 
 
@@ -287,8 +303,8 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
 
     B_n = {"src": R_n["src"], "dest": R_n["dest"], "bucket": R_n["bucket"]}
     rho_wave = measure(conn, M_B, B_n, M_R, R_n)
-    r = 1
-    r_wave = 1
+    r = 0
+    r_wave = 0
     while check_dimensions(conn):
         #print "check dimensions"
         for col in columns:
@@ -322,10 +338,14 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
             rho_prime = measure(conn, M_B, B_n, M_R, R_n)
             cur.execute("INSERT INTO order_%s VALUES('%s', %d);" % (col_name, attr_name, r))
             r += 1
+            #print "Bna is", B_n
+
             if rho_prime > rho_wave:
                 rho_wave = rho_prime
                 r_wave = r
+                #print " now order %s size is %d " % (col_name, tuple_counts(conn, "order_%s" % col_name))
                 #print "rho prime is ", rho_prime, " in", r
+                #print "Bn is", B_n
 
         conn.commit()
         cur.execute("CREATE INDEX idx_B_%s ON B(%s);" % (col_name, col_name))
@@ -338,12 +358,15 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
         drop_table(conn, "B_temp")
         #print 'NB is ', tuple_counts(conn, "B")
         drop_table(conn, "D_%s" % col_name)
-        #print "R WAVE IS ", r_wave
+        ##print "R WAVE IS ", r_wave
+
+    #print "R WAVE IS", rho_wave, r_wave
 
     for col in columns:
         table_fresh_create_from_query(conn, "B_%s" % col, """SELECT %s
                                                        FROM order_%s
                                                        WHERE ord >= %d""" % (col, col, r_wave))
+        #print "BDIS", tuple_counts(conn, "B_dest")
         drop_table(conn, "order_%s" % col)
     drop_table(conn, "B")
     conn.commit()
@@ -366,14 +389,14 @@ def dcube(conn, relation, k, measure, select_dimension):
     for i in range(k):
 
         M_R = get_mass(conn, "darpa")
-        print M_R, R_n
+        #print M_R, R_n
         find_single_block(conn, "darpa", M_R, measure, select_dimension)
         table_fresh_create_from_query(conn, "temp", """SELECT * FROM darpa
                                                        WHERE src NOT IN (SELECT src FROM B_src)
                                                        OR dest NOT IN (SELECT dest FROM B_dest)
                                                        OR bucket NOT IN (SELECT bucket FROM B_bucket)""")
         copy_table(conn, "temp", "darpa")
-        #print get_mass(conn, "darpa")
+        ##print get_mass(conn, "darpa")
         table_fresh_create_from_query(conn, "B_ori_%d" % i,
                                       """SELECT * FROM %s
                                          WHERE src IN (SELECT src FROM B_src)
@@ -395,7 +418,7 @@ if __name__ == '__main__':
     conn = init_database()
     #a = raw_input("press to continue...\n")
     table_fresh_create_from_file(conn, "darpa", "src text, dest text, mins text", "darpa.csv", True)
-    results = dcube(conn, "darpa", 3, rho_geo, select_dimension_by_density)
+    results = dcube(conn, "darpa", 1, rho_susp, select_dimension_by_cardinality)
     drop_table(conn, "darpa")
     #database_clearup()
 
