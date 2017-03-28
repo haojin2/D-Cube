@@ -49,6 +49,7 @@ def table_fresh_create(conn, name, columns, flag = True):
     if flag:
         drop_table(conn, name)
     try:
+        # CREATE TABLE table_name (column1 datatype, column2 datatype, column3 datatype);
         cur.execute("CREATE TABLE %s (%s);" % (name, columns))
     except psycopg2.Error:
         print "Error when Create %s" % name
@@ -266,7 +267,7 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
     M_B = M_R
     for col in columns:
         copy_table(conn, R_n[col], "B_%s" % col)
-        table_fresh_create(conn, "order_%s" % col, "%s text, order int" % col)
+        table_fresh_create(conn, "order_%s" % col, "%s text, ord int" % col)
 
     rho_wave = measure(conn, M_B, {"src": "B_src", "dest": "B_dest", "bucket": "B_bucket"}, M_R, R_n)
     r = 1
@@ -311,11 +312,11 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
         drop_table(conn, "B_temp")
         drop_table(conn, "D_%s" % col_name)
 
-    for j in range(len(columns)):
+    for col in columns:
         table_fresh_create_from_query(conn, "B_%s", """SELECT %s
                                                        FROM order_%s
-                                                       WHERE order >= %d""" % (columns[i], columns[i], r_wave))
-        drop_table(conn, "order_%s" % columns[i])
+                                                       WHERE ord >= %d""" % (col, col, r_wave))
+        drop_table(conn, "order_%s" % col)
     drop_table(conn, "B")
     conn.commit()
     cur.close()
