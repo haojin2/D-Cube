@@ -8,7 +8,7 @@ from dcube_params import *
 
 active_tables = {}
 
-R_n = {"src": "R_src", "dest": "R_dest", "bucket": "R_bucket"}
+R_n = {"src": 0, "dest": 0, "bucket": 0}
 
 def init_database():
     os.system("pg_ctl -D $HOME/826prj/ -o '-k /tmp' start")
@@ -266,7 +266,8 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
         copy_table(conn, R_n[col], "B_%s" % col)
         table_fresh_create(conn, "order_%s" % col, "%s text, ord int" % col)
 
-    rho_wave = measure(conn, M_B, {"src": "B_src", "dest": "B_dest", "bucket": "B_bucket"}, M_R, R_n)
+    B_n = {"src": R_n["src"], "dest": R_n["dest"], "bucket": R_n["bucket"]}
+    rho_wave = measure(conn, M_B, B_n, M_R, R_n)
     r = 1
     r_wave = 1
     while check_dimensions(conn):
@@ -286,14 +287,16 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
         table_fresh_create_from_query(conn, "D_%s" % col_name,
                                       "SELECT * FROM M_B_%s WHERE cnt <= %f ORDER BY cnt ASC" %
                                        (col_name, M_B * 1. / tuple_counts(conn, "B_%s" % col_name)))
+        cur.execute("CREATE INDEX idx_col_%s ON D_%s(%s)" % (col_name, col_name, col_name))
         len_D = tuple_counts(conn, "D_%s" % col_name)
         for j in range(len_D):
+            print "D_%s" % col_name, j, len_D
             cur.execute("""SELECT * FROM D_%s LIMIT 1 OFFSET %d""" % (col_name, j+1))
             attr_name, M_B_a_i, = cur.fetchone()
             cur.execute("DELETE FROM B_%s WHERE %s = '%s'" % (col_name, col_name, attr_name))
+            B_n[col_name] -= 1
             M_B = M_B - M_B_a_i
-            rho_prime = measure(conn, M_B, {"src": "B_src", "dest": "B_dest", "bucket": "B_bucket"},
-                                      M_R, R_n)
+            rho_prime = measure(conn, M_B, B_n, M_R, R_n)
             cur.execute("INSERT INTO order_%s VALUES('%s', %d);" % (col_name, attr_name, r))
             r += 1
             if rho_prime > rho_wave:
@@ -323,9 +326,8 @@ def dcube(conn, relation, k, measure, select_dimension):
     table_fresh_create_from_query(conn, "R_src", """SELECT DISTINCT(src) FROM darpa""")
     table_fresh_create_from_query(conn, "R_dest", """SELECT DISTINCT(dest) FROM darpa""")
     table_fresh_create_from_query(conn, "R_bucket", """SELECT DISTINCT(bucket) FROM darpa""")
-    print tuple_counts(conn, "R_src")
-    print tuple_counts(conn, "R_dest")
-    print tuple_counts(conn, "R_bucket")
+    for col in columns:
+        R_n[col] = tuple_counts(conn, "R_%s" % col)
     results = []
     for i in range(k):
         M_R = get_mass(conn, "darpa")
