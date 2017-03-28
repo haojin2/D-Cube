@@ -285,18 +285,18 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
         col_name = select_dimension(conn, {"src": "B_src", "dest": "B_dest", "bucket": "B_bucket"},
                              R_n, {"src": "M_B_src", "dest": "M_B_dest", "bucket": "M_B_bucket"},
                              M_B, M_R, measure)
-
+        print "selected: ", col_name
         table_fresh_create_from_query(conn, "D_%s" % col_name,
                                       "SELECT * FROM M_B_%s WHERE cnt <= %f ORDER BY cnt ASC" %
                                        (col_name, M_B * 1. / tuple_counts(conn, "B_%s" % col_name)))
         cur.execute("CREATE INDEX idx_col_%s ON D_%s(%s)" % (col_name, col_name, col_name))
         len_D = tuple_counts(conn, "D_%s" % col_name)
         for j in range(len_D):
-            print "D_%s" % col_name, j, len_D
-
             cur.execute("""SELECT * FROM D_%s LIMIT 1 OFFSET %d""" % (col_name, j))
             attr_name, M_B_a_i, = cur.fetchone()
+            print "Before DELETE: ", tuple_counts_distinct(conn, "B_%s" % col_name, col_name)
             cur.execute("DELETE FROM B_%s WHERE %s = '%s'" % (col_name, col_name, attr_name))
+            print "After DELETE: ", tuple_counts_distinct(conn, "B_%s" % col_name, col_name)
             B_n[col_name] -= 1
             M_B = M_B - M_B_a_i
             rho_prime = measure(conn, M_B, B_n, M_R, R_n)
