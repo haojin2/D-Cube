@@ -267,7 +267,7 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
     copy_table(conn, R, "B")
     M_B = M_R
     for col in columns:
-        copy_table(conn, R_n[col], "B_%s" % col)
+        copy_table(conn, "R_%s" % col, "B_%s" % col)
         table_fresh_create(conn, "order_%s" % col, "%s text, ord int" % col)
 
     B_n = {"src": R_n["src"], "dest": R_n["dest"], "bucket": R_n["bucket"]}
