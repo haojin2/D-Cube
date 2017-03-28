@@ -285,11 +285,10 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
                                               GROUP BY B_%s.%s""" % (col, col, col, col, col, col, col, col))
             print "M_B_%s count:" % col, tuple_counts(conn, "M_B_%s" % col)
 
-        i = select_dimension(conn, {"src": "B_src", "dest": "B_dest", "bucket": "B_bucket"},
+        col_name = select_dimension(conn, {"src": "B_src", "dest": "B_dest", "bucket": "B_bucket"},
                              R_n, {"src": "M_B_src", "dest": "M_B_dest", "bucket": "M_B_bucket"},
                              M_B, M_R, measure)
 
-        col_name = columns[i]
         table_fresh_create_from_query(conn, "D_%s" % col_name,
                                       "SELECT * FROM M_B_%s WHERE cnt <= %f ORDER BY cnt ASC" %
                                        (col_name, M_B * 1. / tuple_counts(conn, "B_%s" % col_name)))
