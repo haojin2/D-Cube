@@ -165,7 +165,7 @@ def rho_ari(conn, mb, block_attrs, mr, rel_attrs):
     temp = 0
     for col in columns:
         block_tb = block_attrs[col]
-        temp += tuple_counts_distinct(conn, block_tb, col)
+        temp += block_tb
 
     # return 1
     return 3. * float(mb) / float(temp)
@@ -175,8 +175,7 @@ def rho_geo(conn, mb, block_attrs, mr, rel_attrs):
     temp = 1
     for col in columns:
         block_tb = block_attrs[col]
-        temp *= tuple_counts_distinct(conn, block_tb, col)
-
+        temp *= block_tb
     return float(mb) / float(temp) ** (1. / 3.)
 
 
@@ -186,7 +185,7 @@ def rho_susp(conn, mb, block_attrs, mr, rel_attrs):
     for col in columns:
         block_tb = block_attrs[col]
         rel_tb = rel_attrs[col]
-        temp1 *= float(tuple_counts_distinct(conn, block_tb, col)) / float(tuple_counts_distinct(conn, rel_tb, col))
+        temp1 *= float(block_tb) / float(rel_tb)
 
     temp += mr * temp1
     temp -= mb * numpy.log(temp1)
