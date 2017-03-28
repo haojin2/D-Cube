@@ -8,6 +8,7 @@ from dcube_params import *
 
 active_tables = {}
 
+R_n = {"src": "R_src", "dest": "R_dest", "bucket": "R_bucket"}
 
 def init_database():
     os.system("pg_ctl -D $HOME/826prj/ -o '-k /tmp' start")
@@ -177,19 +178,21 @@ def find_single_block(conn, R, M_R, measure, select_dimension):
         table_fresh_create_from_query(conn, "B_src", """SELECT DISTINCT(src) FROM B""")
         table_fresh_create_from_query(conn, "B_dest", """SELECT DISTINCT(dest) FROM B""")
         table_fresh_create_from_query(conn, "B_bucket", """SELECT DISTINCT(bucket) FROM B""")
-        table_fresh_create_from_query(conn, "M_B_src", """SELECT src, COUNT(*) as M
-                                                          FROM %s
-                                                          WHERE src IN
+        table_fresh_create_from_query(conn, "M_B_src", """SELECT src, SUM(*) as M
+                                                          FROM B WHERE src IN
                                                           (SELECT DISTINCT(src) FROM B_src)
-                                                          GROUP BY src""" % R)
-        table_fresh_create_from_query(conn, "M_B_dest", """SELECT dest, COUNT(*) as M
-                                                          FROM %s
-                                                          WHERE dest IN
+                                                          GROUP BY src""")
+        table_fresh_create_from_query(conn, "M_B_dest", """SELECT dest, SUM(*) as M
+                                                          FROM B WHERE dest IN
                                                           (SELECT DISTINCT(dest) FROM B_dest)
-                                                          GROUP BY dest""" % R)
+                                                          GROUP BY dest""")
         table_fresh_create_from_query(conn, "M_B_bucket",
-                                            """SELECT bucket, COUNT(*) as M FROM %s GROUP BY bucket""" % R)
-        i = select_dimension(conn)
+                                            """SELECT bucket, SUM(*) as M
+                                                          FROM B WHERE bucket IN
+                                                          (SELECT DISTINCT(bucket) FROM B_bucket)
+                                                          GROUP BY bucket""")
+        # i = select_dimension(conn, )
+        i = 0
         col_name = columns[i]
         table_fresh_create(conn, "order_%s" % col_name, "%s text, order int" % col_name)
         table_fresh_create_from_query(conn, "D_%s" % columns[i], "SELECT * FROM M_B_%s WHERE M <= %f ORDER BY M ASC" %
@@ -222,7 +225,7 @@ def find_single_block(conn, R, M_R, measure, select_dimension):
     cur.close()
 
 
-def dcube(conn, relation, k, measure):
+def dcube(conn, relation, k, measure, select_dimension):
     cur = conn.cursor()
     ori_table = bucketize(conn, relation, BUCKET_FLAG)
     copy_table(conn, ori_table, "darpa")
@@ -235,7 +238,8 @@ def dcube(conn, relation, k, measure):
     results = []
     for i in range(k):
         M_R = get_mass(conn, ori_table)
-        find_single_block(conn, "darpa", M_R, measure)
+        # R, M_R, measure, select_dimension
+        find_single_block(conn, "darpa", M_R, measure, select_dimension)
         table_fresh_create(conn, "B_src", "src text")
         table_fresh_create(conn, "B_dest", "dest text")
         table_fresh_create(conn, "B_bucket", "bucket text")
