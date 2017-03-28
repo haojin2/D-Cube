@@ -207,6 +207,7 @@ def filter_block(conn, tb, mass_thr):
 
 
 def select_dimension_by_density(conn, block_attrs, rel_attrs, mass_attrs, mb, mr, density_measure):
+    print "select dimension by density"
     ret = ''
     max_rho = -float("inf")
     for col in columns:
@@ -273,6 +274,7 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
     r = 1
     r_wave = 1
     while check_dimensions(conn):
+        print "check dimensions"
         for col in columns:
             # CREATE TABLE t_c AS (SELECT t_b.id, CASE WHEN SUM(t_a.val) is NULL THEN 0 ELSE SUM(t_a.val) END AS cnt FROM t_a RIGHT JOIN t_b ON t_a.id = t_b.id GROUP BY t_b.id);
             print "B_%s count:" % col, tuple_counts(conn, "B_%s" % col)
@@ -291,6 +293,7 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
                                        (col_name, M_B * 1. / tuple_counts(conn, "B_%s" % col_name)))
         len_D = tuple_counts(conn, "D_%s" % col_name)
         for j in range(len_D):
+            print "D_%s" % col_name, j, len_D
             table_fresh_create_from_query(conn, "B_%s_temp" % col_name,
                                           """SELECT %s FROM M_B_%s
                                              WHERE %s NOT IN (SELECT %s FROM D_%s LIMIT %d)"""
