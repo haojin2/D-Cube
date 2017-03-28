@@ -207,6 +207,7 @@ def select_dimension_by_density(conn, block_attrs, rel_attrs, mass_attrs, mb, mr
     ret = ''
     max_rho = -float("inf")
     for col in columns:
+    for col in columns:
         if mb == 0:
             continue
 
@@ -227,7 +228,11 @@ def select_dimension_by_density(conn, block_attrs, rel_attrs, mass_attrs, mb, mr
         temp_block_attrs[col] = temp_block_attr_tb
         temp_mass = get_mass(conn, temp_block_attr_tb)
 
-        rho = density_measure(conn, temp_mass, block_attrs, mr, rel_attrs)
+        temp_block_attrs_size = {}
+        for col in columns:
+            temp_block_attrs_size[col] = tuple_counts_distinct(temp_block_attrs[col])
+
+        rho = density_measure(conn, temp_mass, temp_block_attrs_size, mr, rel_attrs)
 
         if rho > max_rho:
             max_rho = rho
