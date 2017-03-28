@@ -333,7 +333,7 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
         drop_table(conn, "D_%s" % col_name)
 
     for col in columns:
-        table_fresh_create_from_query(conn, "B_%s", """SELECT %s
+        table_fresh_create_from_query(conn, "B_%s" % col, """SELECT %s
                                                        FROM order_%s
                                                        WHERE ord >= %d""" % (col, col, r_wave))
         drop_table(conn, "order_%s" % col)
