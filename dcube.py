@@ -165,7 +165,7 @@ def rho_ari(conn, mb, block_attrs, mr, rel_attrs):
     temp = 0
     for col in columns:
         block_tb = block_attrs[col]
-        temp += tuple_counts_distinct(conn, block_tb, col)
+        temp += block_tb
 
     # return 1
     return 3. * float(mb) / float(temp)
@@ -175,8 +175,7 @@ def rho_geo(conn, mb, block_attrs, mr, rel_attrs):
     temp = 1
     for col in columns:
         block_tb = block_attrs[col]
-        temp *= tuple_counts_distinct(conn, block_tb, col)
-
+        temp *= block_tb
     return float(mb) / float(temp) ** (1. / 3.)
 
 
@@ -186,7 +185,7 @@ def rho_susp(conn, mb, block_attrs, mr, rel_attrs):
     for col in columns:
         block_tb = block_attrs[col]
         rel_tb = rel_attrs[col]
-        temp1 *= float(tuple_counts_distinct(conn, block_tb, col)) / float(tuple_counts_distinct(conn, rel_tb, col))
+        temp1 *= float(block_tb) / float(rel_tb)
 
     temp += mr * temp1
     temp -= mb * numpy.log(temp1)
@@ -204,6 +203,7 @@ def filter_block(conn, tb, mass_thr):
 
 
 def select_dimension_by_density(conn, block_attrs, rel_attrs, mass_attrs, mb, mr, density_measure):
+    print "select dimension by density"
     ret = ''
     max_rho = -float("inf")
     for col in columns:
@@ -271,6 +271,7 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
     r = 1
     r_wave = 1
     while check_dimensions(conn):
+        print "check dimensions"
         for col in columns:
             # CREATE TABLE t_c AS (SELECT t_b.id, CASE WHEN SUM(t_a.val) is NULL THEN 0 ELSE SUM(t_a.val) END AS cnt FROM t_a RIGHT JOIN t_b ON t_a.id = t_b.id GROUP BY t_b.id);
             print "B_%s count:" % col, tuple_counts(conn, "B_%s" % col)
@@ -291,6 +292,7 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
         len_D = tuple_counts(conn, "D_%s" % col_name)
         for j in range(len_D):
             print "D_%s" % col_name, j, len_D
+
             cur.execute("""SELECT * FROM D_%s LIMIT 1 OFFSET %d""" % (col_name, j+1))
             attr_name, M_B_a_i, = cur.fetchone()
             cur.execute("DELETE FROM B_%s WHERE %s = '%s'" % (col_name, col_name, attr_name))
