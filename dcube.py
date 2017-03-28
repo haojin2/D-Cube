@@ -356,13 +356,14 @@ def dcube(conn, relation, k, measure, select_dimension):
     copy_table(conn, ori_table, "darpa")
 
     results = []
-    for i in range(k):
 
-        table_fresh_create_from_query(conn, "R_src", """SELECT DISTINCT(src) FROM darpa""")
-        table_fresh_create_from_query(conn, "R_dest", """SELECT DISTINCT(dest) FROM darpa""")
-        table_fresh_create_from_query(conn, "R_bucket", """SELECT DISTINCT(bucket) FROM darpa""")
-        for col in columns:
-            R_n[col] = tuple_counts(conn, "R_%s" % col)
+    table_fresh_create_from_query(conn, "R_src", """SELECT DISTINCT(src) FROM darpa""")
+    table_fresh_create_from_query(conn, "R_dest", """SELECT DISTINCT(dest) FROM darpa""")
+    table_fresh_create_from_query(conn, "R_bucket", """SELECT DISTINCT(bucket) FROM darpa""")
+    for col in columns:
+        R_n[col] = tuple_counts(conn, "R_%s" % col)
+
+    for i in range(k):
 
         M_R = get_mass(conn, "darpa")
         print M_R, R_n
