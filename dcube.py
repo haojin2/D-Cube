@@ -310,7 +310,7 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
             B_n[col_name] -= 1
             print 'bncol ', B_n[col_name]
             M_B = M_B - M_B_a_i
-            if sum(list(map(len, B_n))) > 0:
+            if sum(B_n.values()) > 0:
                 rho_prime = measure(conn, M_B, B_n, M_R, R_n)
                 cur.execute("INSERT INTO order_%s VALUES('%s', %d);" % (col_name, attr_name, r))
                 r += 1
