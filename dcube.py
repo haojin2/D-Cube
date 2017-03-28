@@ -118,10 +118,7 @@ def get_distinct_val(conn, new_tb, tb, col):
 def bucketize(conn, relation, size=BUCKET_FLAG, binary=BINARY_FLAG):
     cur = conn.cursor()
     new_name = relation + "_ori"
-    try:
-        cur.execute("DROP TABLE %s;" % new_name)
-    except psycopg2.Error:
-        print "Error in get_distinct_val on table %s col %s" % (tb, col)
+    drop_table(conn, new_name)
     if size == 0:
         print "bucketize by hour"
         if binary == 0:
@@ -294,12 +291,10 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
         len_D = tuple_counts(conn, "D_%s" % col_name)
         for j in range(len_D):
             print "D_%s" % col_name, j, len_D
-            table_fresh_create_from_query(conn, "B_%s_temp" % col_name,
-                                          """SELECT %s FROM M_B_%s
-                                             OFFSET %d"""
-                                          % (col_name, col_name, j+1))
+
             cur.execute("""SELECT * FROM D_%s LIMIT 1 OFFSET %d""" % (col_name, j+1))
             attr_name, M_B_a_i, = cur.fetchone()
+            cur.execute("DELETE FROM B_%s WHERE %s = %s" % (col_name, col_name, attr_name))
             M_B = M_B - M_B_a_i
             rho_prime = measure(conn, M_B, {"src": "B_src", "dest": "B_dest", "bucket": "B_bucket"},
                                       M_R, R_n)
