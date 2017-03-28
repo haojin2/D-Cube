@@ -118,10 +118,7 @@ def get_distinct_val(conn, new_tb, tb, col):
 def bucketize(conn, relation, size=BUCKET_FLAG, binary=BINARY_FLAG):
     cur = conn.cursor()
     new_name = relation + "_ori"
-    try:
-        cur.execute("DROP TABLE %s;" % new_name)
-    except psycopg2.Error:
-        print "Error in get_distinct_val on table %s col %s" % (tb, col)
+    drop_table(conn, new_name)
     if size == 0:
         print "bucketize by hour"
         if binary == 0:
