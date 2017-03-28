@@ -301,7 +301,7 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
         cur.execute("CREATE INDEX idx_col_%s ON D_%s(%s)" % (col_name, col_name, col_name))
         len_D = tuple_counts(conn, "D_%s" % col_name)
         for j in range(len_D):
-            print j, len_D
+            # print j, len_D
             cur.execute("""SELECT * FROM D_%s LIMIT 1 OFFSET %d""" % (col_name, j))
             attr_name, M_B_a_i, = cur.fetchone()
             #print "Before DELETE: ", tuple_counts_distinct(conn, "B_%s" % col_name, col_name)
@@ -310,17 +310,23 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
             B_n[col_name] -= 1
             print 'bncol ', B_n[col_name]
             M_B = M_B - M_B_a_i
-            rho_prime = measure(conn, M_B, B_n, M_R, R_n)
-            cur.execute("INSERT INTO order_%s VALUES('%s', %d);" % (col_name, attr_name, r))
-            r += 1
-            if rho_prime > rho_wave:
-                rho_wave = rho_prime
-                r_wave = r
+            if sum(list(map(len, B_n))) > 0:
+                rho_prime = measure(conn, M_B, B_n, M_R, R_n)
+                cur.execute("INSERT INTO order_%s VALUES('%s', %d);" % (col_name, attr_name, r))
+                r += 1
+                if rho_prime > rho_wave:
+                    rho_wave = rho_prime
+                    r_wave = r
+            else:
+                cur.execute("INSERT INTO order_%s VALUES('%s', %d);" % (col_name, attr_name, r))
 
         conn.commit()
+        cur.execute("CREATE INDEX idx_B_%s ON B(%s);" % (col_name, col_name))
+        print "after index creation"
         table_fresh_create_from_query(conn, "B_temp", """SELECT * FROM B
                                                          WHERE %s NOT IN
                                                          (SELECT %s FROM D_%s)""" % (col_name, col_name, col_name))
+        print "after computing new B"
         copy_table(conn, "B_temp", "B")
         drop_table(conn, "B_temp")
         print 'NB is ', tuple_counts(conn, "B")
