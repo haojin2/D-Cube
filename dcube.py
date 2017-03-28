@@ -167,6 +167,8 @@ def rho_ari(conn, mb, block_attrs, mr, rel_attrs):
         temp += block_tb
 
     # return 1
+    if temp == 0:
+        return float('inf')
     return 3. * float(mb) / float(temp)
 
 
@@ -175,6 +177,8 @@ def rho_geo(conn, mb, block_attrs, mr, rel_attrs):
     for col in columns:
         block_tb = block_attrs[col]
         temp *= block_tb
+    if temp == 0:
+        return float('inf')
     return float(mb) / float(temp) ** (1. / 3.)
 
 
@@ -187,6 +191,8 @@ def rho_susp(conn, mb, block_attrs, mr, rel_attrs):
         temp1 *= float(block_tb) / float(rel_tb)
 
     temp += mr * temp1
+    if temp1 == 0:
+        return float('inf')
     temp -= mb * numpy.log(temp1)
     return temp
 
