@@ -130,6 +130,9 @@ class TestAlg4(unittest.TestCase):
         drop_table(self.conn, "testsrc")
         drop_table(self.conn, "testdest")
         drop_table(self.conn, "testbucket")
+        drop_table(self.conn, "testrelsrc")
+        drop_table(self.conn, "testreldest")
+        drop_table(self.conn, "testrelbucket")
         self.assertTrue(abs(rho1-1.5) < 1e-8)
         self.assertTrue(abs(rho2-2.5) < 1e-8)
         print rho3_correct, rho3
