@@ -160,6 +160,98 @@ def get_mass(conn, block_tb):
     return float(data[0])
 
 
+## dimension select algorithms ##
+
+
+def rho_ari(conn, mb, block_attrs, mr, rel_attrs):
+    temp = 0
+    for col in columns:
+        block_tb = block_attrs[col]
+        temp += tuple_counts_distinct(conn, block_tb, col)
+
+    # return 1
+    return 3. * float(mb) / float(temp)
+
+
+def rho_geo(conn, mb, block_attrs, mr, rel_attrs):
+    temp = 1
+    for col in columns:
+        block_tb = block_attrs[col]
+        temp *= tuple_counts_distinct(conn, block_tb, col)
+
+    return float(mb) / float(temp) ** (1. / 3.)
+
+
+def rho_susp(conn, mb, block_attrs, mr, rel_attrs):
+    temp = (numpy.log(mb / mr) - 1) * mb
+    temp1 = 1.
+    for col in columns:
+        block_tb = block_attrs[col]
+        rel_tb = rel_attrs[col]
+        temp1 *= float(tuple_counts_distinct(conn, block_tb, col)) / float(tuple_counts_distinct(conn, rel_tb, col))
+
+    temp += mr * temp1
+    temp -= mb * numpy.log(temp1)
+    return temp
+
+
+def filter_block(conn, tb, mass_thr):
+    cur = conn.cursor()
+    try:
+        cur.execute("DELETE FROM %s WHERE ID <= %s;" % (tb, str(mass_thr)))
+    except psycopg2.Error:
+        print "Error when filtering block %s with mass threshold %d" % (tb, mass_thr)
+    conn.commit()
+    cur.close()
+
+
+def select_dimension_by_density(conn, block_attrs, rel_attrs, mass_attrs, mb, mr, density_measure):
+    ret = ''
+    max_rho = -float("inf")
+    for col in columns:
+        if mb == 0:
+            continue
+
+        block_tb = block_attrs[col]
+        bi = tuple_counts_distinct(conn, block_tb, col)
+        block_attr_tb = mass_attrs[col]
+        mass_thr = float(mb) / float(bi)
+
+        temp_block_attr_tb = ""
+        copy_table(conn, block_attr_tb, temp_block_attr_tb, drop=True)
+
+        temp_block_attrs = mass_attrs
+
+        # filter block
+        filter_block(conn, temp_block_attrs, mass_thr)
+
+        temp_block_attrs[col] = temp_block_attr_tb
+        temp_mass = get_mass(conn, temp_block_attr_tb)
+
+        rho = density_measure(conn, temp_mass, block_attrs, mr, rel_attrs)
+
+        if rho > max_rho:
+            max_rho = rho
+            ret = col
+
+        drop_table(conn, temp_block_attr_tb)
+
+    return ret
+
+
+def select_dimension_by_cardinality(conn, block_attrs, rel_attrs, mass_attrs, mb, mr, density_measure):
+    ret = ''
+    max_card = float("inf")
+    for col in columns:
+        block_tb = block_attrs[col]
+        card = tuple_counts_distinct(conn, block_tb, col)
+        if card > max_card:
+            ret = col
+            max_card = card
+
+    return ret
+
+
 def check_dimensions(conn):
     len_src = tuple_counts(conn, "B_src")
     len_dest = tuple_counts(conn, "B_dest")
@@ -264,94 +356,6 @@ def dcube(conn, relation, k, measure, select_dimension):
     cur.close()
     return results
 
-
-## dimension select algorithms ##
-
-
-def rho_ari(conn, mb, block_attrs, mr, rel_attrs):
-    temp = 0
-    for col in columns:
-        block_tb = block_attrs[col]
-        temp += tuple_counts_distinct(conn, block_tb, col)
-
-    #return 1
-    return 3. * float(mb) / float(temp)
-
-
-def rho_geo(conn, mb, block_attrs, mr, rel_attrs):
-    temp = 1
-    for col in columns:
-        block_tb = block_attrs[col]
-        temp *= tuple_counts_distinct(conn, block_tb, col)
-
-    return float(mb) / float(temp)**(1./3.)
-
-
-def rho_susp(conn, mb, block_attrs, mr, rel_attrs):
-    temp = (numpy.log(mb/mr) - 1) * mb
-    temp1 = 1.
-    for col in columns:
-        block_tb = block_attrs[col]
-        rel_tb = rel_attrs[col]
-        temp1 *= float(tuple_counts_distinct(conn, block_tb, col))/float(tuple_counts_distinct(conn, rel_tb, col))
-    
-    temp += mr * temp1
-    temp -= mb * numpy.log(temp1)
-    return temp
-
-def filter_block(conn, tb, mass_thr):
-    cur = conn.cursor()
-    try:
-        cur.execute("DELETE FROM %s WHERE ID <= %s;" % (tb, str(mass_thr)))
-    except psycopg2.Error:
-        print "Error when filtering block %s with mass threshold %d" % (tb, mass_thr)
-    conn.commit()
-    cur.close()
-
-
-def select_dimension_by_density(conn, block_attrs, rel_attrs, mass_attrs, mb, mr, density_measure):
-    ret = ''
-    max_rho = -float("inf")
-    for col in columns:
-        if mb == 0:
-            continue
-        
-        bi = tuple_counts_distinct(conn, block_tb, col)
-        block_attr_tb = mass_attrs[col]
-        mass_thr = float(mb) / float(bi)
-        
-        temp_block_attr_tb = ""
-        copy_table(conn, block_attr_tb, temp_block_attr_tb, drop = True)
-
-        temp_block_attrs = mass_attrs
-
-        # filter block
-        filter_block(conn, temp_block_attrs, mass_thr)
-
-        temp_block_attrs[col] = temp_block_attr_tb
-        temp_mass = get_mass(conn, temp_block_attr_tb)
-
-        rho = density_measure(conn, temp_mass, block_attrs, mr, rel_attrs)
-
-        if rho > max_rho:
-            max_rho = rho
-            ret = col
-
-        drop_table(conn, temp_block_attr_tb)
-
-    return ret
-
-def select_dimension_by_cardinality(conn, block_attrs, rel_attrs, mass_attrs, mb, mr, density_measure):
-    ret = ''
-    max_card = float("inf")
-    for col in columns:
-        block_tb = block_attrs[col]
-        card = tuple_counts_distinct(conn, block_tb, col)
-        if card > max_card:
-            ret = col
-            max_card = card
-
-    return ret
 
 if __name__ == '__main__':
     conn = init_database()
