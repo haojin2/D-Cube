@@ -288,12 +288,9 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
                                        (col_name, M_B * 1. / tuple_counts(conn, "B_%s" % col_name)))
         len_D = tuple_counts(conn, "D_%s" % col_name)
         for j in range(len_D):
-            table_fresh_create_from_query(conn, "B_%s_temp" % col_name,
-                                          """SELECT %s FROM M_B_%s
-                                             OFFSET %d"""
-                                          % (col_name, col_name, j+1))
             cur.execute("""SELECT * FROM D_%s LIMIT 1 OFFSET %d""" % (col_name, j+1))
             attr_name, M_B_a_i, = cur.fetchone()
+            cur.execute("DELETE FROM B_%s WHERE %s = %s" % (col_name, col_name, attr_name))
             M_B = M_B - M_B_a_i
             rho_prime = measure(conn, M_B, {"src": "B_src", "dest": "B_dest", "bucket": "B_bucket"},
                                       M_R, R_n)
