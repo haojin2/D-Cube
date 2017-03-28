@@ -228,8 +228,8 @@ def select_dimension_by_density(conn, block_attrs, rel_attrs, mass_attrs, mb, mr
         temp_mass = get_mass(conn, temp_block_attr_tb)
 
         temp_block_attrs_size = {}
-        for col in columns:
-            temp_block_attrs_size[col] = tuple_counts_distinct(conn, temp_block_attrs[col], col)
+        for col1 in columns:
+            temp_block_attrs_size[col1] = tuple_counts_distinct(conn, temp_block_attrs[col1], col1)
 
         rho = density_measure(conn, temp_mass, temp_block_attrs_size, mr, rel_attrs)
 
