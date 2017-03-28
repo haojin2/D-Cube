@@ -121,6 +121,10 @@ def get_distinct_val(conn, new_tb, tb, col):
 def bucketize(conn, relation, size=BUCKET_FLAG, binary=BINARY_FLAG):
     cur = conn.cursor()
     new_name = relation + "_ori"
+    try:
+        cur.execute("DROP TABLE %s;" % new_name)
+    except psycopg2.Error:
+        print "Error in get_distinct_val on table %s col %s" % (tb, col)
     if size == 0:
         print "bucketize by hour"
         if binary == 0:
@@ -198,7 +202,7 @@ def rho_susp(conn, mb, block_attrs, mr, rel_attrs):
 def filter_block(conn, tb, mass_thr):
     cur = conn.cursor()
     try:
-        cur.execute("DELETE FROM %s WHERE ID <= %s;" % (tb, str(mass_thr)))
+        cur.execute("DELETE FROM %s WHERE M <= %f;" % (tb, mass_thr))
     except psycopg2.Error:
         print "Error when filtering block %s with mass threshold %d" % (tb, mass_thr)
     conn.commit()
@@ -215,12 +219,13 @@ def select_dimension_by_density(conn, block_attrs, rel_attrs, mass_attrs, mb, mr
         block_tb = block_attrs[col]
         bi = tuple_counts_distinct(conn, block_tb, col)
         block_attr_tb = mass_attrs[col]
+        print block_attr_tb
         mass_thr = float(mb) / float(bi)
 
-        temp_block_attr_tb = ""
+        temp_block_attr_tb = "temptable"
         copy_table(conn, block_attr_tb, temp_block_attr_tb, drop=True)
 
-        temp_block_attrs = mass_attrs
+        temp_block_attrs = mass_attrs[col]
 
         # filter block
         filter_block(conn, temp_block_attrs, mass_thr)
