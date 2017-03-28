@@ -313,16 +313,13 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
             B_n[col_name] -= 1
             #print 'bncol ', B_n[col_name]
             M_B = M_B - M_B_a_i
-            if sum(B_n.values()) > 0:
-                rho_prime = measure(conn, M_B, B_n, M_R, R_n)
-                cur.execute("INSERT INTO order_%s VALUES('%s', %d);" % (col_name, attr_name, r))
-                r += 1
-                if rho_prime > rho_wave:
-                    rho_wave = rho_prime
-                    r_wave = r
-                    #print "rho prime is ", rho_prime, " in", r
-            else:
-                cur.execute("INSERT INTO order_%s VALUES('%s', %d);" % (col_name, attr_name, r))
+            rho_prime = measure(conn, M_B, B_n, M_R, R_n)
+            cur.execute("INSERT INTO order_%s VALUES('%s', %d);" % (col_name, attr_name, r))
+            r += 1
+            if rho_prime > rho_wave:
+                rho_wave = rho_prime
+                r_wave = r
+                #print "rho prime is ", rho_prime, " in", r
 
         conn.commit()
         cur.execute("CREATE INDEX idx_B_%s ON B(%s);" % (col_name, col_name))
