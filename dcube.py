@@ -281,7 +281,7 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
             table_fresh_create_from_query(conn, "M_B_%s" % col,
                                           """SELECT B_%s.%s, CASE WHEN SUM(B.cnt) is NULL THEN 0 ELSE SUM(B.cnt) END AS cnt
                                               FROM B RIGHT JOIN B_%s ON B.%s = B_%s.%s
-                                              GROUP BY B_%s.%s""" % (col, col, col, col, col, col, col, col))
+                                              GROUP BY B_%s.%s ORDER BY cnt ASC""" % (col, col, col, col, col, col, col, col))
             print "M_B_%s count:" % col, tuple_counts(conn, "M_B_%s" % col)
 
         col_name = select_dimension(conn, {"src": "B_src", "dest": "B_dest", "bucket": "B_bucket"},
@@ -296,8 +296,8 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
             print "D_%s" % col_name, j, len_D
             table_fresh_create_from_query(conn, "B_%s_temp" % col_name,
                                           """SELECT %s FROM M_B_%s
-                                             WHERE %s NOT IN (SELECT %s FROM D_%s LIMIT %d)"""
-                                          % (col_name, col_name, col_name, col_name, col_name, j+1))
+                                             OFFSET %d"""
+                                          % (col_name, col_name, j+1))
             cur.execute("""SELECT * FROM D_%s LIMIT 1 OFFSET %d""" % (col_name, j+1))
             attr_name, M_B_a_i, = cur.fetchone()
             M_B = M_B - M_B_a_i
