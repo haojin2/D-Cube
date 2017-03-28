@@ -202,7 +202,7 @@ def rho_susp(conn, mb, block_attrs, mr, rel_attrs):
 def filter_block(conn, tb, mass_thr):
     cur = conn.cursor()
     try:
-        cur.execute("DELETE FROM %s WHERE M <= %f;" % (tb, mass_thr))
+        cur.execute("DELETE FROM %s WHERE cnt <= %f;" % (tb, mass_thr))
     except psycopg2.Error:
         print "Error when filtering block %s with mass threshold %d" % (tb, mass_thr)
     conn.commit()
@@ -280,7 +280,7 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
             # CREATE TABLE t_c AS (SELECT t_b.id, CASE WHEN SUM(t_a.val) is NULL THEN 0 ELSE SUM(t_a.val) END AS cnt FROM t_a RIGHT JOIN t_b ON t_a.id = t_b.id GROUP BY t_b.id);
             print "B_%s count:" % col, tuple_counts(conn, "B_%s" % col)
             table_fresh_create_from_query(conn, "M_B_%s" % col,
-                                          """SELECT B_%s.%s, CASE WHEN SUM(B.cnt) is NULL THEN 0 ELSE SUM(B.cnt) END AS M
+                                          """SELECT B_%s.%s, CASE WHEN SUM(B.cnt) is NULL THEN 0 ELSE SUM(B.cnt) END AS cnt
                                               FROM B RIGHT JOIN B_%s ON B.%s = B_%s.%s
                                               GROUP BY B_%s.%s""" % (col, col, col, col, col, col, col, col))
             print "M_B_%s count:" % col, tuple_counts(conn, "M_B_%s" % col)
@@ -291,7 +291,7 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
 
         col_name = columns[i]
         table_fresh_create_from_query(conn, "D_%s" % col_name,
-                                      "SELECT * FROM M_B_%s WHERE M <= %f ORDER BY M ASC" %
+                                      "SELECT * FROM M_B_%s WHERE cnt <= %f ORDER BY cnt ASC" %
                                        (col_name, M_B * 1. / tuple_counts(conn, "B_%s" % col_name)))
         len_D = tuple_counts(conn, "D_%s" % col_name)
         for j in range(len_D):
