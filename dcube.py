@@ -152,6 +152,8 @@ def get_mass(conn, block_tb):
     except psycopg2.Error:
         print "Error when getting count from %s" % block_tb
     data = cur.fetchone()
+    if data[0] is None:
+        return 0.
     return float(data[0])
 
 
@@ -204,11 +206,10 @@ def select_dimension_by_density(conn, block_attrs, rel_attrs, mass_attrs, mb, mr
     ret = ''
     max_rho = -float("inf")
     for col in columns:
-        if mb == 0:
-            continue
-
         block_tb = block_attrs[col]
         bi = tuple_counts_distinct(conn, block_tb, col)
+        if bi == 0:
+            continue
         block_attr_tb = mass_attrs[col]
         print block_attr_tb
         mass_thr = float(mb) / float(bi)
@@ -225,8 +226,16 @@ def select_dimension_by_density(conn, block_attrs, rel_attrs, mass_attrs, mb, mr
         temp_mass = get_mass(conn, temp_block_attr_tb)
 
         temp_block_attrs_size = {}
+
+        temp_sum_size = 0
+
         for col1 in columns:
             temp_block_attrs_size[col1] = tuple_counts_distinct(conn, temp_block_attrs[col1], col1)
+            temp_sum_size += temp_block_attrs_size[col1]
+
+        if temp_sum_size == 0:
+            return col
+        
 
         rho = density_measure(conn, temp_mass, temp_block_attrs_size, mr, rel_attrs)
 
@@ -292,12 +301,14 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
         cur.execute("CREATE INDEX idx_col_%s ON D_%s(%s)" % (col_name, col_name, col_name))
         len_D = tuple_counts(conn, "D_%s" % col_name)
         for j in range(len_D):
+            print j, len_D
             cur.execute("""SELECT * FROM D_%s LIMIT 1 OFFSET %d""" % (col_name, j))
             attr_name, M_B_a_i, = cur.fetchone()
             #print "Before DELETE: ", tuple_counts_distinct(conn, "B_%s" % col_name, col_name)
             cur.execute("DELETE FROM B_%s WHERE %s = '%s'" % (col_name, col_name, attr_name))
             #print "After DELETE: ", tuple_counts_distinct(conn, "B_%s" % col_name, col_name)
             B_n[col_name] -= 1
+            print 'bncol ', B_n[col_name]
             M_B = M_B - M_B_a_i
             rho_prime = measure(conn, M_B, B_n, M_R, R_n)
             cur.execute("INSERT INTO order_%s VALUES('%s', %d);" % (col_name, attr_name, r))
@@ -305,6 +316,8 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
             if rho_prime > rho_wave:
                 rho_wave = rho_prime
                 r_wave = r
+
+        conn.commit()
         table_fresh_create_from_query(conn, "B_temp", """SELECT * FROM B
                                                          WHERE %s NOT IN
                                                          (SELECT %s FROM D_%s)""" % (col_name, col_name, col_name))
