@@ -361,7 +361,7 @@ if __name__ == '__main__':
     conn = init_database()
     a = raw_input("press to continue...\n")
     table_fresh_create_from_file(conn, "darpa", "src text, dest text, mins text", "darpa.csv", False)
-    results = dcube(conn, "darpa", 1, None, None)
+    results = dcube(conn, "darpa", 1, rho_ari, select_dimension_by_density)
     drop_table(conn, "darpa")
     database_clearup()
 
