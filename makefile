@@ -1,5 +1,5 @@
 demo:
-	python dcube.py $(block_num) $(measurement) $(principle)
+	python dcube.py 3 ari density
 
 test:
 	python test.py
