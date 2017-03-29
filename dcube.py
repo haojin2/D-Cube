@@ -1,4 +1,5 @@
 import psycopg2
+import sys
 import os
 import time
 import numpy
@@ -173,22 +174,22 @@ def get_mass(conn, block_tb):
     return float(data[0])
 
 
-## dimension select algorithms ##
 
-
+## Density Measurement Functions
 def rho_ari(conn, mb, block_attrs, mr, rel_attrs):
+    # The density based on arithmatic mean
     temp = 0
     for col in columns:
         block_tb = block_attrs[col]
         temp += block_tb
 
-    # return 1
     if temp == 0:
         return -1.
     return 3. * float(mb) / float(temp)
 
 
 def rho_geo(conn, mb, block_attrs, mr, rel_attrs):
+    # The density based on geometric mean
     temp = 1
     for col in columns:
         block_tb = block_attrs[col]
@@ -199,6 +200,7 @@ def rho_geo(conn, mb, block_attrs, mr, rel_attrs):
 
 
 def rho_susp(conn, mb, block_attrs, mr, rel_attrs):
+    # The density based on geometric mean
     if (mr == 0):
         return -1
     temp = (numpy.log(mb / mr) - 1) * mb
@@ -216,6 +218,7 @@ def rho_susp(conn, mb, block_attrs, mr, rel_attrs):
 
 
 def filter_block(conn, tb, mass_thr):
+    # Move out all attributes with lower desntity
     cur = conn.cursor()
     try:
         cur.execute("DELETE FROM %s WHERE cnt <= %f;" % (tb, mass_thr))
@@ -227,6 +230,7 @@ def filter_block(conn, tb, mass_thr):
 
 
 def select_dimension_by_density(conn, block_attrs, rel_attrs, mass_attrs, mb, mr, density_measure):
+    # Select the dimension with the largest density after remove some of its attributes
     ret = ''
     max_rho = -float("inf")
     for col in columns:
@@ -235,31 +239,29 @@ def select_dimension_by_density(conn, block_attrs, rel_attrs, mass_attrs, mb, mr
         if bi == 0:
             continue
         block_attr_tb = mass_attrs[col]
+
+        # get the threshold (average mass)
         mass_thr = float(mb) / float(bi)
 
         temp_block_attr_tb = "temptable"
         copy_table(conn, block_attr_tb, temp_block_attr_tb, drop=True)
-
         temp_block_attrs = dict(mass_attrs)
 
-        # filter block
+        # move out attributes with low density
         filter_block(conn, temp_block_attr_tb, mass_thr)
 
         temp_block_attrs[col] = temp_block_attr_tb
         temp_mass = get_mass(conn, temp_block_attr_tb)
-
         temp_block_attrs_size = {}
 
-        temp_sum_size = 0
-        temp_geo_size = 1
-
+        # get the new B_n list
         for col1 in columns:
             temp_block_attrs_size[col1] = tuple_counts_distinct(conn, temp_block_attrs[col1], col1)
-            temp_sum_size += temp_block_attrs_size[col1]
-            temp_geo_size *= temp_block_attrs_size[col1]
 
+        # calculate the density
         rho = density_measure(conn, temp_mass, temp_block_attrs_size, mr, rel_attrs)
 
+        # record the maximum of row and the corresponding dimension
         if rho >= max_rho:
             max_rho = rho
             ret = col
@@ -270,6 +272,7 @@ def select_dimension_by_density(conn, block_attrs, rel_attrs, mass_attrs, mb, mr
 
 
 def select_dimension_by_cardinality(conn, block_attrs, rel_attrs, mass_attrs, mb, mr, density_measure):
+    # Select the dimension with the largest cardinality (the largest number of remaining attributes)
     ret = ''
     max_card = -float("inf")
     for col in columns:
@@ -397,6 +400,13 @@ def dcube(conn, relation, k, measure, select_dimension):
                                          AND dest IN (SELECT dest FROM B_dest)
                                          AND bucket IN (SELECT bucket FROM B_bucket)""" % ori_table)
         results.append("B_ori_%d" % i)
+
+        # print results
+        print "Block %d:" % (i+1)
+        print "Mass: %d" % get_mass(conn, 'B_ori_%d' % i)
+        print "Size: %dx%dx%d" % (tuple_counts(conn, 'B_src'), tuple_counts(conn, 'B_dest'), tuple_counts(conn, 'B_bucket'))
+        print
+
         drop_table(conn, "temp")
         conn.commit()
     drop_table(conn, "R_bucket")
@@ -412,7 +422,20 @@ if __name__ == '__main__':
     conn = init_database()
     #a = raw_input("press to continue...\n")
     table_fresh_create_from_file(conn, "darpa", "src text, dest text, mins text", "darpa.csv", True)
-    results = dcube(conn, "darpa", 1, rho_susp, select_dimension_by_cardinality)
+
+
+    funcdict = {
+      'density': select_dimension_by_density, 
+      'cardinality': select_dimension_by_cardinality, 
+      'ari': rho_ari, 
+      'geo': rho_geo, 
+      'susp': rho_susp, 
+    }
+
+    measurement = funcdict[sys.argv[2]]
+    principle = funcdict[sys.argv[3]]
+    block_num = int(sys.argv[1])
+    results = dcube(conn, "darpa", block_num, measurement, principle)
     drop_table(conn, "darpa")
     #database_clearup()
 
