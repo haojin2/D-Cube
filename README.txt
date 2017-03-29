@@ -7,7 +7,8 @@ D-Cube Using SQL
 STEPS TO RUN
 ============
 1. Follow the steps in http://www.cs.cmu.edu/~christos/courses/826.S17/getting-started-with-postgresql.html till you
-successfully create a db with "createdb $USER".
+successfully create a db with "createdb $USER". Please remember to set the port in dcube_params.py and use the same
+port when you do "export PGPORT=XXXXX".
 
 2. Make sure python 2.7 is installed in the system. This software also requires psycopg2 library to run.
 
