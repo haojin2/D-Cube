@@ -1,15 +1,15 @@
 import psycopg2
-import sys
 import os
 import time
 import numpy
-import math
 from dcube_params import *
 
 active_tables = {}
 
+# Data Structure for caching R_n sizes
 R_n = {"src": 0, "dest": 0, "bucket": 0}
 
+# Helper function for setting up the database
 def init_database():
     os.system("pg_ctl -D $HOME/826prj/ -o '-k /tmp' -l logfile start")
     time.sleep(1)
@@ -18,12 +18,14 @@ def init_database():
     return conn
 
 
+# Helper function for closing the database
 def database_clearup():
     conn.close()
     os.system("pg_ctl -D $HOME/826prj stop")
     time.sleep(1)
 
 
+# Helper function for counting total number of tuples in a table
 def tuple_counts(conn, name):
     cur = conn.cursor()
     try:
@@ -35,6 +37,7 @@ def tuple_counts(conn, name):
     return data[0]
 
 
+# Helper function for counting number of distinct values in a column of a table
 def tuple_counts_distinct(conn, name, col):
     cur = conn.cursor()
     try:
@@ -46,6 +49,7 @@ def tuple_counts_distinct(conn, name, col):
     return data[0]
 
 
+# Helper function for create a fresh new table
 def table_fresh_create(conn, name, columns, flag = True):
     cur = conn.cursor()
     if flag:
@@ -60,6 +64,7 @@ def table_fresh_create(conn, name, columns, flag = True):
     cur.close()
 
 
+# Helper function for create a table from a query
 def table_fresh_create_from_query(conn, name, query, drop = True):
     cur = conn.cursor()
     if drop:
@@ -69,6 +74,7 @@ def table_fresh_create_from_query(conn, name, query, drop = True):
     cur.close()
 
 
+# Helper function for loading data into a new table
 def table_fresh_create_from_file(conn, name, columns, filename, flag = True):
     cur = conn.cursor()
     filename = os.path.abspath("%s" % filename)
@@ -83,6 +89,7 @@ def table_fresh_create_from_file(conn, name, columns, filename, flag = True):
     cur.close()
 
 
+# Helper function for copying a table
 def copy_table(conn, src, cpy, drop = True):
     cur = conn.cursor()
     if drop:
@@ -96,6 +103,7 @@ def copy_table(conn, src, cpy, drop = True):
     cur.close()
 
 
+# Helper function for dropping a table
 def drop_table(conn, tb):
     cur = conn.cursor()
     try:
@@ -118,6 +126,7 @@ def get_distinct_val(conn, new_tb, tb, col):
     cur.close()
 
 
+# Helper function to compute the bucketized dataset
 def bucketize(conn, relation, size=BUCKET_FLAG, binary=BINARY_FLAG):
     cur = conn.cursor()
     new_name = relation + "_ori"
@@ -273,6 +282,7 @@ def select_dimension_by_cardinality(conn, block_attrs, rel_attrs, mass_attrs, mb
     return ret
 
 
+# Helper function to check if all of B_n is empty
 def check_dimensions(conn):
     len_src = tuple_counts(conn, "B_src")
     len_dest = tuple_counts(conn, "B_dest")
@@ -280,28 +290,38 @@ def check_dimensions(conn):
     return (len_src != 0) or (len_dest != 0) or (len_bucket != 0)
 
 
+# The implementation for find_single_block
 def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dimension_by_cardinality):
     cur = conn.cursor()
+    # B <- R
     copy_table(conn, R, "B")
+    # M_B <- M_R
     M_B = M_R
+    # B_n <- R_n
     for col in columns:
         copy_table(conn, "R_%s" % col, "B_%s" % col)
         table_fresh_create(conn, "order_%s" % col, "%s text, ord int" % col)
 
+    # cache B_n count for faster computation
     B_n = {"src": R_n["src"], "dest": R_n["dest"], "bucket": R_n["bucket"]}
+    # rho~ = rho(M_B, |B_n|, M_R, |R_n|)
     rho_wave = measure(conn, M_B, B_n, M_R, R_n)
+    # r, r~ <- 0
     r = 0
     r_wave = 0
     while check_dimensions(conn):
+        # Compute {M_B(a,i)}
         for col in columns:
             table_fresh_create_from_query(conn, "M_B_%s" % col,
                                           """SELECT B_%s.%s, CASE WHEN SUM(B.cnt) is NULL THEN 0 ELSE SUM(B.cnt) END AS cnt
                                               FROM B RIGHT JOIN B_%s ON B.%s = B_%s.%s
                                               GROUP BY B_%s.%s ORDER BY cnt ASC""" % (col, col, col, col, col, col, col, col))
 
+        # i <- select_dimension()
         col_name = select_dimension(conn, {"src": "B_src", "dest": "B_dest", "bucket": "B_bucket"},
                              R_n, {"src": "M_B_src", "dest": "M_B_dest", "bucket": "M_B_bucket"},
                              M_B, M_R, measure)
+        # D_i <- {M_B(a,i) <= M_B / |B_i|}
         table_fresh_create_from_query(conn, "D_%s" % col_name,
                                       "SELECT * FROM M_B_%s WHERE cnt <= %f ORDER BY cnt ASC" %
                                        (col_name, M_B * 1. / tuple_counts(conn, "B_%s" % col_name)))
@@ -310,10 +330,13 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
         for j in range(len_D):
             cur.execute("""SELECT * FROM D_%s LIMIT 1 OFFSET %d""" % (col_name, j))
             attr_name, M_B_a_i, = cur.fetchone()
+            # B_i <- B_i - {a}, M_B <- M_B - M_B(a,i)
             cur.execute("DELETE FROM B_%s WHERE %s = '%s'" % (col_name, col_name, attr_name))
             B_n[col_name] -= 1
             M_B = M_B - M_B_a_i
+            # rho' <- rho(M_B, |B_i|, M_R, |R_i|)
             rho_prime = measure(conn, M_B, B_n, M_R, R_n)
+            # order(a,n) <- r, r <- r+1
             cur.execute("INSERT INTO order_%s VALUES('%s', %d);" % (col_name, attr_name, r))
             r += 1
 
@@ -323,6 +346,7 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
 
         conn.commit()
         cur.execute("CREATE INDEX idx_B_%s ON B(%s);" % (col_name, col_name))
+        # get new B
         table_fresh_create_from_query(conn, "B_temp", """SELECT * FROM B
                                                          WHERE %s NOT IN
                                                          (SELECT %s FROM D_%s)""" % (col_name, col_name, col_name))
@@ -330,6 +354,7 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
         drop_table(conn, "B_temp")
         drop_table(conn, "D_%s" % col_name)
 
+    # get B~
     for col in columns:
         table_fresh_create_from_query(conn, "B_%s" % col, """SELECT %s
                                                        FROM order_%s
@@ -340,6 +365,7 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
     cur.close()
 
 
+# The implementation for Algo 1 in D-Cube paper
 def dcube(conn, relation, k, measure, select_dimension):
     cur = conn.cursor()
     ori_table = bucketize(conn, relation)
@@ -347,6 +373,7 @@ def dcube(conn, relation, k, measure, select_dimension):
 
     results = []
 
+    # Create R_n tables and remember |R_n| in memory for faster computation
     table_fresh_create_from_query(conn, "R_src", """SELECT DISTINCT(src) FROM darpa""")
     table_fresh_create_from_query(conn, "R_dest", """SELECT DISTINCT(dest) FROM darpa""")
     table_fresh_create_from_query(conn, "R_bucket", """SELECT DISTINCT(bucket) FROM darpa""")
@@ -354,14 +381,16 @@ def dcube(conn, relation, k, measure, select_dimension):
         R_n[col] = tuple_counts(conn, "R_%s" % col)
 
     for i in range(k):
-
         M_R = get_mass(conn, "darpa")
+        # Blocks are returned in B_src, B_dest, B_bucket tables
         find_single_block(conn, "darpa", M_R, measure, select_dimension)
+        # Get new R by filtering out tuples in B
         table_fresh_create_from_query(conn, "temp", """SELECT * FROM darpa
                                                        WHERE src NOT IN (SELECT src FROM B_src)
                                                        OR dest NOT IN (SELECT dest FROM B_dest)
                                                        OR bucket NOT IN (SELECT bucket FROM B_bucket)""")
         copy_table(conn, "temp", "darpa")
+        # the i-th table is stored in B_ori_i and kept in disk when the software finishes
         table_fresh_create_from_query(conn, "B_ori_%d" % i,
                                       """SELECT * FROM %s
                                          WHERE src IN (SELECT src FROM B_src)
