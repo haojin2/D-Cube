@@ -36,7 +36,6 @@ def tuple_counts(conn, name):
 
 
 def tuple_counts_distinct(conn, name, col):
-    ##print "tuple counts distinct", name, col
     cur = conn.cursor()
     try:
         cur.execute("SELECT COUNT (DISTINCT %s) FROM %s" % (col, name))
@@ -219,7 +218,6 @@ def filter_block(conn, tb, mass_thr):
 
 
 def select_dimension_by_density(conn, block_attrs, rel_attrs, mass_attrs, mb, mr, density_measure):
-    #print "select dimension by density"
     ret = ''
     max_rho = -float("inf")
     for col in columns:
@@ -228,7 +226,6 @@ def select_dimension_by_density(conn, block_attrs, rel_attrs, mass_attrs, mb, mr
         if bi == 0:
             continue
         block_attr_tb = mass_attrs[col]
-        #print block_attr_tb
         mass_thr = float(mb) / float(bi)
 
         temp_block_attr_tb = "temptable"
@@ -252,14 +249,7 @@ def select_dimension_by_density(conn, block_attrs, rel_attrs, mass_attrs, mb, mr
             temp_sum_size += temp_block_attrs_size[col1]
             temp_geo_size *= temp_block_attrs_size[col1]
 
-        #if temp_sum_size == 0 or temp_geo_size == 0:
-        #    return col
-        
-
-        #print temp_block_attrs_size
         rho = density_measure(conn, temp_mass, temp_block_attrs_size, mr, rel_attrs)
-
-        print rho, "x", max_rho, "x", col
 
         if rho >= max_rho:
             max_rho = rho
@@ -273,16 +263,13 @@ def select_dimension_by_density(conn, block_attrs, rel_attrs, mass_attrs, mb, mr
 def select_dimension_by_cardinality(conn, block_attrs, rel_attrs, mass_attrs, mb, mr, density_measure):
     ret = ''
     max_card = -float("inf")
-    print block_attrs
     for col in columns:
         block_tb = block_attrs[col]
         card = tuple_counts_distinct(conn, block_tb, col)
-        print card
         if card >= max_card:
             ret = col
             max_card = card
 
-    print ret
     return ret
 
 
@@ -306,67 +293,47 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
     r = 0
     r_wave = 0
     while check_dimensions(conn):
-        #print "check dimensions"
         for col in columns:
-            # CREATE TABLE t_c AS (SELECT t_b.id, CASE WHEN SUM(t_a.val) is NULL THEN 0 ELSE SUM(t_a.val) END AS cnt FROM t_a RIGHT JOIN t_b ON t_a.id = t_b.id GROUP BY t_b.id);
-            #print "B_%s count:" % col, tuple_counts(conn, "B_%s" % col)
             table_fresh_create_from_query(conn, "M_B_%s" % col,
                                           """SELECT B_%s.%s, CASE WHEN SUM(B.cnt) is NULL THEN 0 ELSE SUM(B.cnt) END AS cnt
                                               FROM B RIGHT JOIN B_%s ON B.%s = B_%s.%s
                                               GROUP BY B_%s.%s ORDER BY cnt ASC""" % (col, col, col, col, col, col, col, col))
-            #print "M_B_%s count:" % col, tuple_counts(conn, "M_B_%s" % col)
 
         col_name = select_dimension(conn, {"src": "B_src", "dest": "B_dest", "bucket": "B_bucket"},
                              R_n, {"src": "M_B_src", "dest": "M_B_dest", "bucket": "M_B_bucket"},
                              M_B, M_R, measure)
-        #print "selected: ", col_name
         table_fresh_create_from_query(conn, "D_%s" % col_name,
                                       "SELECT * FROM M_B_%s WHERE cnt <= %f ORDER BY cnt ASC" %
                                        (col_name, M_B * 1. / tuple_counts(conn, "B_%s" % col_name)))
         cur.execute("CREATE INDEX idx_col_%s ON D_%s(%s)" % (col_name, col_name, col_name))
         len_D = tuple_counts(conn, "D_%s" % col_name)
         for j in range(len_D):
-            #print j, len_D
             cur.execute("""SELECT * FROM D_%s LIMIT 1 OFFSET %d""" % (col_name, j))
             attr_name, M_B_a_i, = cur.fetchone()
-            #print "Before DELETE: ", tuple_counts_distinct(conn, "B_%s" % col_name, col_name)
             cur.execute("DELETE FROM B_%s WHERE %s = '%s'" % (col_name, col_name, attr_name))
-            #print "After DELETE: ", tuple_counts_distinct(conn, "B_%s" % col_name, col_name)
             B_n[col_name] -= 1
-            #print 'bncol ', B_n[col_name]
             M_B = M_B - M_B_a_i
             rho_prime = measure(conn, M_B, B_n, M_R, R_n)
             cur.execute("INSERT INTO order_%s VALUES('%s', %d);" % (col_name, attr_name, r))
             r += 1
-            #print "Bna is", B_n
 
             if rho_prime > rho_wave:
                 rho_wave = rho_prime
                 r_wave = r
-                #print " now order %s size is %d " % (col_name, tuple_counts(conn, "order_%s" % col_name))
-                #print "rho prime is ", rho_prime, " in", r
-                #print "Bn is", B_n
 
         conn.commit()
         cur.execute("CREATE INDEX idx_B_%s ON B(%s);" % (col_name, col_name))
-        #print "after index creation"
         table_fresh_create_from_query(conn, "B_temp", """SELECT * FROM B
                                                          WHERE %s NOT IN
                                                          (SELECT %s FROM D_%s)""" % (col_name, col_name, col_name))
-        #print "after computing new B"
         copy_table(conn, "B_temp", "B")
         drop_table(conn, "B_temp")
-        #print 'NB is ', tuple_counts(conn, "B")
         drop_table(conn, "D_%s" % col_name)
-        ##print "R WAVE IS ", r_wave
-
-    #print "R WAVE IS", rho_wave, r_wave
 
     for col in columns:
         table_fresh_create_from_query(conn, "B_%s" % col, """SELECT %s
                                                        FROM order_%s
                                                        WHERE ord >= %d""" % (col, col, r_wave))
-        #print "BDIS", tuple_counts(conn, "B_dest")
         drop_table(conn, "order_%s" % col)
     drop_table(conn, "B")
     conn.commit()
@@ -389,14 +356,12 @@ def dcube(conn, relation, k, measure, select_dimension):
     for i in range(k):
 
         M_R = get_mass(conn, "darpa")
-        #print M_R, R_n
         find_single_block(conn, "darpa", M_R, measure, select_dimension)
         table_fresh_create_from_query(conn, "temp", """SELECT * FROM darpa
                                                        WHERE src NOT IN (SELECT src FROM B_src)
                                                        OR dest NOT IN (SELECT dest FROM B_dest)
                                                        OR bucket NOT IN (SELECT bucket FROM B_bucket)""")
         copy_table(conn, "temp", "darpa")
-        ##print get_mass(conn, "darpa")
         table_fresh_create_from_query(conn, "B_ori_%d" % i,
                                       """SELECT * FROM %s
                                          WHERE src IN (SELECT src FROM B_src)
