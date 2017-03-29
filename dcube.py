@@ -201,7 +201,9 @@ def rho_geo(conn, mb, block_attrs, mr, rel_attrs):
 
 def rho_susp(conn, mb, block_attrs, mr, rel_attrs):
     # The density based on geometric mean
-    if (mr == 0):
+    if (abs(mr - 0) < 1e-8):
+        return -1
+    if (abs(mb - 0) < 1e-8):
         return -1
     temp = (numpy.log(mb / mr) - 1) * mb
     temp1 = 1.
@@ -367,6 +369,8 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
     conn.commit()
     cur.close()
 
+    return rho_wave
+
 
 # The implementation for Algo 1 in D-Cube paper
 def dcube(conn, relation, k, measure, select_dimension):
@@ -386,7 +390,7 @@ def dcube(conn, relation, k, measure, select_dimension):
     for i in range(k):
         M_R = get_mass(conn, "darpa")
         # Blocks are returned in B_src, B_dest, B_bucket tables
-        find_single_block(conn, "darpa", M_R, measure, select_dimension)
+        rho = find_single_block(conn, "darpa", M_R, measure, select_dimension)
         # Get new R by filtering out tuples in B
         table_fresh_create_from_query(conn, "temp", """SELECT * FROM darpa
                                                        WHERE src NOT IN (SELECT src FROM B_src)
@@ -405,6 +409,7 @@ def dcube(conn, relation, k, measure, select_dimension):
         print "Block %d:" % (i+1)
         print "Mass: %d" % get_mass(conn, 'B_ori_%d' % i)
         print "Size: %dx%dx%d" % (tuple_counts(conn, 'B_src'), tuple_counts(conn, 'B_dest'), tuple_counts(conn, 'B_bucket'))
+        print "Density: %f" % rho
         print
 
         drop_table(conn, "temp")
