@@ -151,24 +151,24 @@ def bucketize(conn, relation, size=BUCKET_FLAG, binary=BINARY_FLAG):
         if binary == 0:
             cur.execute("""
                         CREATE TABLE %s AS (
-                        SELECT src, dest, substring(mins from 1 for 13) as bucket, COUNT(*) as cnt FROM darpa GROUP BY src, dest, substring(mins from 1 for 13));
+                        SELECT src, dest, substring(mins from 1 for 13) as bucket, COUNT(*) as cnt, 1 as flag FROM darpa GROUP BY src, dest, substring(mins from 1 for 13));
                         """ % new_name)
         else:
             cur.execute("""
                         CREATE TABLE %s AS (
-                        SELECT src, dest, substring(mins from 1 for 13) as bucket, 1 as cnt FROM darpa GROUP BY src, dest, substring(mins from 1 for 13));
+                        SELECT src, dest, substring(mins from 1 for 13) as bucket, 1 as cnt, 1 as flag FROM darpa GROUP BY src, dest, substring(mins from 1 for 13));
                         """ % new_name)
     else:
         #print "bucketize by day"
         if binary == 0:
             cur.execute("""
                         CREATE TABLE %s AS (
-                        SELECT src, dest, substring(mins from 1 for 10) as bucket, COUNT(*) as cnt FROM darpa GROUP BY src, dest, substring(mins from 1 for 10));
+                        SELECT src, dest, substring(mins from 1 for 10) as bucket, COUNT(*) as cnt, 1 as flag FROM darpa GROUP BY src, dest, substring(mins from 1 for 10));
                         """ % new_name)
         else:
             cur.execute("""
                         CREATE TABLE %s AS (
-                        SELECT src, dest, substring(mins from 1 for 10) as bucket, 1 as cnt FROM darpa GROUP BY src, dest, substring(mins from 1 for 10));
+                        SELECT src, dest, substring(mins from 1 for 10) as bucket, 1 as cnt, 1 as flag FROM darpa GROUP BY src, dest, substring(mins from 1 for 10));
                         """ % new_name)
     conn.commit()
     cur.close()
@@ -313,7 +313,10 @@ def check_dimensions(conn):
 def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dimension_by_cardinality):
     cur = conn.cursor()
     # B <- R
-    copy_table(conn, R, "B")
+    # copy_table(conn, R, "B")
+    table_fresh_create_from_query(conn, "B",
+                                  """SELECT src, dest, bucket, cnt FROM %s
+                                     WHERE flag = 1""" % R)
     # M_B <- M_R
     M_B = M_R
     # B_n <- R_n
@@ -405,12 +408,16 @@ def dcube(conn, relation, k, measure, select_dimension):
         M_R = get_mass(conn, "darpa")
         # Blocks are returned in B_src, B_dest, B_bucket tables
         rho = find_single_block(conn, "darpa", M_R, measure, select_dimension)
-        # Get new R by filtering out tuples in B
-        table_fresh_create_from_query(conn, "temp", """SELECT * FROM darpa
-                                                       WHERE src NOT IN (SELECT src FROM B_src)
-                                                       OR dest NOT IN (SELECT dest FROM B_dest)
-                                                       OR bucket NOT IN (SELECT bucket FROM B_bucket)""")
-        copy_table(conn, "temp", "darpa")
+        # # Get new R by filtering out tuples in B
+        # table_fresh_create_from_query(conn, "temp", """SELECT * FROM darpa
+        #                                                WHERE src NOT IN (SELECT src FROM B_src)
+        #                                                OR dest NOT IN (SELECT dest FROM B_dest)
+        #                                                OR bucket NOT IN (SELECT bucket FROM B_bucket)""")
+        # copy_table(conn, "temp", "darpa")
+        cur.execute("""UPDATE darpa SET flag = 0
+                       WHERE src IN (SELECT src FROM B_src)
+                       AND dest IN (SELECT dest FROM B_dest)
+                       AND bucket NOT IN (SELECT bucket FROM B_bucket);""")
         # the i-th table is stored in B_ori_i and kept in disk when the software finishes
         table_fresh_create_from_query(conn, "B_ori_%d" % i,
                                       """SELECT * FROM %s
