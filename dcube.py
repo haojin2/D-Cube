@@ -119,9 +119,10 @@ def drop_table(conn, tb):
 def index_fresh_create(conn, tb, columns):
     cur = conn.cursor()
     try:
-        cur.execute("DROP INDEX %s_idx ON %s;" % (tb, tb))
+        cur.execute("DROP INDEX %s_idx;" % tb)
     except psycopg2.Error:
         pass
+    conn.commit()
     try:
         cur.execute("CREATE INDEX %s_idx ON %s(%s);" % (tb, tb, columns))
     except:
@@ -394,6 +395,8 @@ def dcube(conn, relation, k, measure, select_dimension):
     cur = conn.cursor()
     ori_table = bucketize(conn, relation)
     copy_table(conn, ori_table, "darpa")
+
+    index_fresh_create(conn, "darpa", "src, dest, bucket")
 
     results = []
 
