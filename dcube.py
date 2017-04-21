@@ -116,6 +116,20 @@ def drop_table(conn, tb):
     cur.close()
 
 
+def index_fresh_create(conn, tb, columns):
+    cur = conn.cursor()
+    try:
+        cur.execute("DROP INDEX %s_idx ON %s;" % (tb, tb))
+    except psycopg2.Error:
+        pass
+    try:
+        cur.execute("CREATE INDEX %s_idx ON %s(%s);" % (tb, tb, columns))
+    except:
+        print "error when creating index on %s(%s)" % (tb, columns)
+    conn.commit()
+    cur.close()
+
+
 def get_distinct_val(conn, new_tb, tb, col):
     cur = conn.cursor()
     try:
