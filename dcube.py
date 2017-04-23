@@ -212,6 +212,18 @@ def get_mass(conn, block_tb):
     return float(data[0])
 
 
+def get_mass_with_flag(conn, block_tb):
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT SUM(cnt) FROM %s WHERE flag = 1" % block_tb)
+    except psycopg2.Error:
+        #print "Error when getting count from %s" % block_tb
+        pass
+    data = cur.fetchone()
+    if data[0] is None:
+        return 0.
+    return float(data[0])
+
 
 ## Density Measurement Functions
 def rho_ari(conn, mb, block_attrs, mr, rel_attrs):
@@ -405,19 +417,25 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
         conn.commit()
         # cur.execute("CREATE INDEX idx_B_%s ON B USING hash(%s);" % (col_name, col_name))
         # index_fresh_create(conn, "B", col_name)
-        # get new B
+        # # get new B
+        # t00 = time.time()
+        # table_fresh_create_from_query(conn, "B_temp", """SELECT * FROM B
+        #                                                  WHERE %s NOT IN
+        #                                                  (SELECT %s FROM D_%s)""" % (col_name, col_name, col_name))
+        # t10 = time.time()
+        # print "Create B_temp used: ", t10 - t00
+        print "before delete from B"
         t00 = time.time()
-        table_fresh_create_from_query(conn, "B_temp", """SELECT * FROM B
-                                                         WHERE %s NOT IN
-                                                         (SELECT %s FROM D_%s)""" % (col_name, col_name, col_name))
+        cur.execute("DELETE FROM B WHERE %s IN (SELECT %s FROM D_%s)" % (col_name, col_name, col_name))
+        conn.commit()
         t10 = time.time()
-        print "Create B_temp used: ", t10 - t00
+        print "Delete from B used: ", t10 - t00
         # drop_index(conn, "B")
-        t00 = time.time()
-        copy_table(conn, "B_temp", "B")
-        t10 = time.time()
-        print "Copy B_temp to B used: ", t10 - t00
-        drop_table(conn, "B_temp")
+        # t00 = time.time()
+        # copy_table(conn, "B_temp", "B")
+        # t10 = time.time()
+        # print "Copy B_temp to B used: ", t10 - t00
+        # drop_table(conn, "B_temp")
         drop_table(conn, "D_%s" % col_name)
     t1 = time.time()
     print "while loop used: ", t1 - t0
@@ -456,10 +474,11 @@ def dcube(conn, relation, k, measure, select_dimension):
         R_n[col] = tuple_counts(conn, "R_%s" % col)
 
     for i in range(k):
-        M_R = get_mass(conn, "darpa")
+        M_R = get_mass_with_flag(conn, "darpa")
+        print "M_R:", M_R
         # Blocks are returned in B_src, B_dest, B_bucket tables
         rho = find_single_block(conn, "darpa", M_R, measure, select_dimension)
-        # # Get new R by filtering out tuples in B
+        # Get new R by filtering out tuples in B
         # table_fresh_create_from_query(conn, "temp", """SELECT * FROM darpa
         #                                                WHERE src NOT IN (SELECT src FROM B_src)
         #                                                OR dest NOT IN (SELECT dest FROM B_dest)
@@ -469,9 +488,10 @@ def dcube(conn, relation, k, measure, select_dimension):
         cur.execute("""UPDATE darpa SET flag = 0
                        WHERE src IN (SELECT src FROM B_src)
                        AND dest IN (SELECT dest FROM B_dest)
-                       AND bucket NOT IN (SELECT bucket FROM B_bucket);""")
+                       AND bucket IN (SELECT bucket FROM B_bucket);""")
         t1 = time.time()
         print "R<-R-B used: ", t1 - t0
+        print "Mass after update:", get_mass_with_flag(conn, "darpa")
 
         # the i-th table is stored in B_ori_i and kept in disk when the software finishes
         t0 = time.time()
