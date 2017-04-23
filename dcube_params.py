@@ -1,8 +1,8 @@
 # The port to use
 PGPORT = 15000
 
-# Flag to control bucket type, 1 for bucket by day, 0 for bucket by hour
-BUCKET_FLAG = 1
+# Flag to control bucket type, 2 for bucket by day, 1 for bucket by hour, 0 for no bucket
+BUCKET_FLAG = 2
 
 # List of columns for DARPA TCP DUMP data
 columns = ['src', 'dest', 'bucket']

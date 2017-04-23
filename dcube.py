@@ -116,13 +116,19 @@ def drop_table(conn, tb):
     cur.close()
 
 
-def index_fresh_create(conn, tb, columns):
+def drop_index(conn, tb):
     cur = conn.cursor()
     try:
         cur.execute("DROP INDEX %s_idx;" % tb)
     except psycopg2.Error:
         pass
     conn.commit()
+    cur.close()
+
+
+def index_fresh_create(conn, tb, columns):
+    cur = conn.cursor()
+    drop_index(conn, tb)
     try:
         cur.execute("CREATE INDEX %s_idx ON %s(%s);" % (tb, tb, columns))
     except:
@@ -148,28 +154,45 @@ def bucketize(conn, relation, size=BUCKET_FLAG, binary=BINARY_FLAG):
     new_name = relation + "_ori"
     drop_table(conn, new_name)
     if size == 0:
-        #print "bucketize by hour"
         if binary == 0:
             cur.execute("""
                         CREATE TABLE %s AS (
-                        SELECT src, dest, substring(mins from 1 for 13) as bucket, COUNT(*) as cnt, 1 as flag FROM darpa GROUP BY src, dest, substring(mins from 1 for 13));
+                        SELECT src, dest, mins as bucket, COUNT(*) as cnt, 1 as flag
+                        FROM darpa GROUP BY src, dest, mins);
                         """ % new_name)
         else:
             cur.execute("""
                         CREATE TABLE %s AS (
-                        SELECT src, dest, substring(mins from 1 for 13) as bucket, 1 as cnt, 1 as flag FROM darpa GROUP BY src, dest, substring(mins from 1 for 13));
+                        SELECT src, dest, mins as bucket, 1 as cnt, 1 as flag
+                        FROM darpa GROUP BY src, dest, mins);
+                        """ % new_name)
+    elif size == 1:
+        #print "bucketize by hour"
+        if binary == 0:
+            cur.execute("""
+                        CREATE TABLE %s AS (
+                        SELECT src, dest, substring(mins from 1 for 13) as bucket, COUNT(*) as cnt, 1 as flag
+                        FROM darpa GROUP BY src, dest, substring(mins from 1 for 13));
+                        """ % new_name)
+        else:
+            cur.execute("""
+                        CREATE TABLE %s AS (
+                        SELECT src, dest, substring(mins from 1 for 13) as bucket, 1 as cnt, 1 as flag
+                        FROM darpa GROUP BY src, dest, substring(mins from 1 for 13));
                         """ % new_name)
     else:
         #print "bucketize by day"
         if binary == 0:
             cur.execute("""
                         CREATE TABLE %s AS (
-                        SELECT src, dest, substring(mins from 1 for 10) as bucket, COUNT(*) as cnt, 1 as flag FROM darpa GROUP BY src, dest, substring(mins from 1 for 10));
+                        SELECT src, dest, substring(mins from 1 for 10) as bucket, COUNT(*) as cnt, 1 as flag
+                        FROM darpa GROUP BY src, dest, substring(mins from 1 for 10));
                         """ % new_name)
         else:
             cur.execute("""
                         CREATE TABLE %s AS (
-                        SELECT src, dest, substring(mins from 1 for 10) as bucket, 1 as cnt, 1 as flag FROM darpa GROUP BY src, dest, substring(mins from 1 for 10));
+                        SELECT src, dest, substring(mins from 1 for 10) as bucket, 1 as cnt, 1 as flag
+                        FROM darpa GROUP BY src, dest, substring(mins from 1 for 10));
                         """ % new_name)
     conn.commit()
     cur.close()
@@ -315,14 +338,19 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
     cur = conn.cursor()
     # B <- R
     # copy_table(conn, R, "B")
+
+    t0 = time.time()
     table_fresh_create_from_query(conn, "B",
                                   """SELECT src, dest, bucket, cnt FROM %s
                                      WHERE flag = 1""" % R)
+    t1 = time.time()
+    print "B<-R used: ", t1 - t0
     # M_B <- M_R
     M_B = M_R
     # B_n <- R_n
     for col in columns:
         copy_table(conn, "R_%s" % col, "B_%s" % col)
+        index_fresh_create(conn, "B_%s" % col, col)
         table_fresh_create(conn, "order_%s" % col, "%s text, ord int" % col)
 
     # cache B_n count for faster computation
@@ -332,13 +360,16 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
     # r, r~ <- 0
     r = 0
     r_wave = 0
+
+    t0 = time.time()
     while check_dimensions(conn):
         # Compute {M_B(a,i)}
         for col in columns:
             table_fresh_create_from_query(conn, "M_B_%s" % col,
                                           """SELECT B_%s.%s, CASE WHEN SUM(B.cnt) is NULL THEN 0 ELSE SUM(B.cnt) END AS cnt
-                                              FROM B RIGHT JOIN B_%s ON B.%s = B_%s.%s
-                                              GROUP BY B_%s.%s ORDER BY cnt ASC""" % (col, col, col, col, col, col, col, col))
+                                             FROM B RIGHT JOIN B_%s ON B.%s = B_%s.%s
+                                             GROUP BY B_%s.%s
+                                             ORDER BY cnt ASC""" % (col, col, col, col, col, col, col, col))
 
         # i <- select_dimension()
         col_name = select_dimension(conn, {"src": "B_src", "dest": "B_dest", "bucket": "B_bucket"},
@@ -348,8 +379,11 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
         table_fresh_create_from_query(conn, "D_%s" % col_name,
                                       "SELECT * FROM M_B_%s WHERE cnt <= %f ORDER BY cnt ASC" %
                                        (col_name, M_B * 1. / tuple_counts(conn, "B_%s" % col_name)))
-        cur.execute("CREATE INDEX idx_col_%s ON D_%s(%s)" % (col_name, col_name, col_name))
+        cur.execute("CREATE INDEX idx_col_%s ON D_%s USING hash(%s)" % (col_name, col_name, col_name))
+        # cur.execute("CREATE INDEX idx_col_%s ON D_%s(%s)" % (col_name, col_name, col_name))
+        conn.commit()
         len_D = tuple_counts(conn, "D_%s" % col_name)
+        t00 = time.time()
         for j in range(len_D):
             cur.execute("""SELECT * FROM D_%s LIMIT 1 OFFSET %d""" % (col_name, j))
             attr_name, M_B_a_i, = cur.fetchone()
@@ -366,17 +400,27 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
             if rho_prime > rho_wave:
                 rho_wave = rho_prime
                 r_wave = r
-
+        t10 = time.time()
+        print "Traversal of D_i used: ", t10 - t00
         conn.commit()
-        cur.execute("CREATE INDEX idx_B_%s ON B(%s);" % (col_name, col_name))
+        # cur.execute("CREATE INDEX idx_B_%s ON B USING hash(%s);" % (col_name, col_name))
+        # index_fresh_create(conn, "B", col_name)
         # get new B
+        t00 = time.time()
         table_fresh_create_from_query(conn, "B_temp", """SELECT * FROM B
                                                          WHERE %s NOT IN
                                                          (SELECT %s FROM D_%s)""" % (col_name, col_name, col_name))
+        t10 = time.time()
+        print "Create B_temp used: ", t10 - t00
+        # drop_index(conn, "B")
+        t00 = time.time()
         copy_table(conn, "B_temp", "B")
+        t10 = time.time()
+        print "Copy B_temp to B used: ", t10 - t00
         drop_table(conn, "B_temp")
         drop_table(conn, "D_%s" % col_name)
-
+    t1 = time.time()
+    print "while loop used: ", t1 - t0
     # get B~
     for col in columns:
         table_fresh_create_from_query(conn, "B_%s" % col, """SELECT %s
@@ -393,11 +437,15 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
 # The implementation for Algo 1 in D-Cube paper
 def dcube(conn, relation, k, measure, select_dimension):
     cur = conn.cursor()
+    t0 = time.time()
     ori_table = bucketize(conn, relation)
+    t1 = time.time()
+    print "bucketize used: ", t1-t0
     copy_table(conn, ori_table, "darpa")
 
-    index_fresh_create(conn, "darpa", "src, dest, bucket")
+    # index_fresh_create(conn, "darpa", "src, dest, bucket")
 
+    t_start = time.time()
     results = []
 
     # Create R_n tables and remember |R_n| in memory for faster computation
@@ -417,17 +465,24 @@ def dcube(conn, relation, k, measure, select_dimension):
         #                                                OR dest NOT IN (SELECT dest FROM B_dest)
         #                                                OR bucket NOT IN (SELECT bucket FROM B_bucket)""")
         # copy_table(conn, "temp", "darpa")
+        t0 = time.time()
         cur.execute("""UPDATE darpa SET flag = 0
                        WHERE src IN (SELECT src FROM B_src)
                        AND dest IN (SELECT dest FROM B_dest)
                        AND bucket NOT IN (SELECT bucket FROM B_bucket);""")
+        t1 = time.time()
+        print "R<-R-B used: ", t1 - t0
+
         # the i-th table is stored in B_ori_i and kept in disk when the software finishes
+        t0 = time.time()
         table_fresh_create_from_query(conn, "B_ori_%d" % i,
                                       """SELECT * FROM %s
                                          WHERE src IN (SELECT src FROM B_src)
                                          AND dest IN (SELECT dest FROM B_dest)
                                          AND bucket IN (SELECT bucket FROM B_bucket)""" % ori_table)
         results.append("B_ori_%d" % i)
+        t1 = time.time()
+        print "B_ori table used: ", t1 - t0
 
         # print results
         print "Block %d:" % (i+1)
@@ -438,6 +493,9 @@ def dcube(conn, relation, k, measure, select_dimension):
 
         drop_table(conn, "temp")
         conn.commit()
+    t_end = time.time()
+    print "Total time used: ", t_end - t_start
+
     drop_table(conn, "R_bucket")
     drop_table(conn, "R_dest")
     drop_table(conn, "R_src")
@@ -466,5 +524,5 @@ if __name__ == '__main__':
     block_num = int(sys.argv[1])
     results = dcube(conn, "darpa", block_num, measurement, principle)
     drop_table(conn, "darpa")
-    #database_clearup()
+    database_clearup()
 
