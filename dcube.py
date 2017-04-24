@@ -251,7 +251,7 @@ def rho_ari(conn, mb, block_attrs, mr, rel_attrs):
 
     if temp == 0:
         return -1.
-    return 3. * float(mb) / float(temp)
+    return dimension * 1.0 * float(mb) / float(temp)
 
 
 def rho_geo(conn, mb, block_attrs, mr, rel_attrs):
@@ -262,7 +262,7 @@ def rho_geo(conn, mb, block_attrs, mr, rel_attrs):
         temp *= block_tb
     if temp == 0:
         return -1.
-    return float(mb) / float(temp) ** (1. / 3.)
+    return float(mb) / float(temp) ** (1. / dimension)
 
 
 def rho_susp(conn, mb, block_attrs, mr, rel_attrs):
@@ -378,6 +378,7 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
     # B_n <- R_n
     for col in columns:
         copy_table(conn, "R_%s" % col, "B_%s" % col)
+        # table_fresh_create_from_query(conn, "B_%s" % col, """SELECT DISTINCT(%s) FROM B""" % col)
         index_fresh_create(conn, "B_%s" % col, col)
         table_fresh_create(conn, "order_%s" % col, "%s text, ord int" % col)
 
@@ -421,7 +422,7 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
             # B_i <- B_i - {a}, M_B <- M_B - M_B(a,i)
             cur.execute("DELETE FROM B_%s WHERE %s = '%s'" % (col_name, col_name, attr_name))
             B_n[col_name] -= 1
-            M_B = M_B - M_B_a_i
+            M_B = M_B - float(M_B_a_i)
             # rho' <- rho(M_B, |B_i|, M_R, |R_i|)
             rho_prime = measure(conn, M_B, B_n, M_R, R_n)
             # order(a,n) <- r, r <- r+1

@@ -8,4 +8,4 @@ BUCKET_FLAG = 0
 columns = ['src', 'dest', 'bucket']
 
 # Flag for whether to binarize the count, 1 for binarize, 0 for not
-BINARY_FLAG = 1
+BINARY_FLAG = 0
