@@ -7,7 +7,11 @@ from dcube_params import *
 
 active_tables = {}
 
+global dimension
+dimension = 0
+
 # Data Structure for caching R_n sizes
+global R_n
 R_n = {"src": 0, "dest": 0, "bucket": 0}
 
 # Helper function for setting up the database
@@ -154,18 +158,30 @@ def bucketize(conn, relation, size=BUCKET_FLAG, binary=BINARY_FLAG):
     new_name = relation + "_ori"
     drop_table(conn, new_name)
     if size == 0:
+        # if binary == 0:
+        #     cur.execute("""
+        #                 CREATE TABLE %s AS (
+        #                 SELECT src, dest, mins as bucket, COUNT(*) as cnt, 1 as flag
+        #                 FROM darpa GROUP BY src, dest, mins);
+        #                 """ % new_name)
+        # else:
+        #     cur.execute("""
+        #                 CREATE TABLE %s AS (
+        #                 SELECT src, dest, mins as bucket, 1 as cnt, 1 as flag
+        #                 FROM darpa GROUP BY src, dest, mins);
+        #                 """ % new_name)
         if binary == 0:
             cur.execute("""
                         CREATE TABLE %s AS (
-                        SELECT src, dest, mins as bucket, COUNT(*) as cnt, 1 as flag
-                        FROM darpa GROUP BY src, dest, mins);
-                        """ % new_name)
+                        SELECT %s, COUNT(*) as cnt, 1 as flag
+                        FROM %s GROUP BY %s);
+                        """ % (new_name, ', '.join(columns), relation, ', '.join(columns)))
         else:
             cur.execute("""
                         CREATE TABLE %s AS (
-                        SELECT src, dest, mins as bucket, 1 as cnt, 1 as flag
-                        FROM darpa GROUP BY src, dest, mins);
-                        """ % new_name)
+                        SELECT %s, 1 as cnt, 1 as flag
+                        FROM %s GROUP BY %s);
+                        """ % (new_name, ', '.join(columns), relation, ', '.join(columns)))
     elif size == 1:
         #print "bucketize by hour"
         if binary == 0:
@@ -339,10 +355,10 @@ def select_dimension_by_cardinality(conn, block_attrs, rel_attrs, mass_attrs, mb
 
 # Helper function to check if all of B_n is empty
 def check_dimensions(conn):
-    len_src = tuple_counts(conn, "B_src")
-    len_dest = tuple_counts(conn, "B_dest")
-    len_bucket = tuple_counts(conn, "B_bucket")
-    return (len_src != 0) or (len_dest != 0) or (len_bucket != 0)
+    for col in columns:
+        if tuple_counts(conn, "B_%s" % col) != 0:
+            return True
+    return False
 
 
 # The implementation for find_single_block
@@ -353,8 +369,8 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
 
     t0 = time.time()
     table_fresh_create_from_query(conn, "B",
-                                  """SELECT src, dest, bucket, cnt FROM %s
-                                     WHERE flag = 1""" % R)
+                                  """SELECT %s, cnt FROM %s
+                                     WHERE flag = 1""" % (', '.join(columns), R))
     t1 = time.time()
     print "B<-R used: ", t1 - t0
     # M_B <- M_R
@@ -366,7 +382,10 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
         table_fresh_create(conn, "order_%s" % col, "%s text, ord int" % col)
 
     # cache B_n count for faster computation
-    B_n = {"src": R_n["src"], "dest": R_n["dest"], "bucket": R_n["bucket"]}
+    # B_n = {"src": R_n["src"], "dest": R_n["dest"], "bucket": R_n["bucket"]}
+    print R_n
+    B_n = {key: R_n[key] for key in R_n.keys()}
+    print B_n
     # rho~ = rho(M_B, |B_n|, M_R, |R_n|)
     rho_wave = measure(conn, M_B, B_n, M_R, R_n)
     # r, r~ <- 0
@@ -384,8 +403,8 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
                                              ORDER BY cnt ASC""" % (col, col, col, col, col, col, col, col))
 
         # i <- select_dimension()
-        col_name = select_dimension(conn, {"src": "B_src", "dest": "B_dest", "bucket": "B_bucket"},
-                             R_n, {"src": "M_B_src", "dest": "M_B_dest", "bucket": "M_B_bucket"},
+        col_name = select_dimension(conn, {key: "B_%s" % key for key in columns},
+                             R_n, {key: "M_B_%s" % key for key in columns},
                              M_B, M_R, measure)
         # D_i <- {M_B(a,i) <= M_B / |B_i|}
         table_fresh_create_from_query(conn, "D_%s" % col_name,
@@ -459,7 +478,7 @@ def dcube(conn, relation, k, measure, select_dimension):
     ori_table = bucketize(conn, relation)
     t1 = time.time()
     print "bucketize used: ", t1-t0
-    copy_table(conn, ori_table, "darpa")
+    copy_table(conn, ori_table, relation)
 
     # index_fresh_create(conn, "darpa", "src, dest, bucket")
 
@@ -467,17 +486,16 @@ def dcube(conn, relation, k, measure, select_dimension):
     results = []
 
     # Create R_n tables and remember |R_n| in memory for faster computation
-    table_fresh_create_from_query(conn, "R_src", """SELECT DISTINCT(src) FROM darpa""")
-    table_fresh_create_from_query(conn, "R_dest", """SELECT DISTINCT(dest) FROM darpa""")
-    table_fresh_create_from_query(conn, "R_bucket", """SELECT DISTINCT(bucket) FROM darpa""")
+    for col in columns:
+        table_fresh_create_from_query(conn, "R_%s" % col, """SELECT DISTINCT(%s) FROM %s""" % (col, relation))
     for col in columns:
         R_n[col] = tuple_counts(conn, "R_%s" % col)
 
     for i in range(k):
-        M_R = get_mass_with_flag(conn, "darpa")
+        M_R = get_mass_with_flag(conn, relation)
         print "M_R:", M_R
         # Blocks are returned in B_src, B_dest, B_bucket tables
-        rho = find_single_block(conn, "darpa", M_R, measure, select_dimension)
+        rho = find_single_block(conn, relation, M_R, measure, select_dimension)
         # Get new R by filtering out tuples in B
         # table_fresh_create_from_query(conn, "temp", """SELECT * FROM darpa
         #                                                WHERE src NOT IN (SELECT src FROM B_src)
@@ -485,21 +503,18 @@ def dcube(conn, relation, k, measure, select_dimension):
         #                                                OR bucket NOT IN (SELECT bucket FROM B_bucket)""")
         # copy_table(conn, "temp", "darpa")
         t0 = time.time()
-        cur.execute("""UPDATE darpa SET flag = 0
-                       WHERE src IN (SELECT src FROM B_src)
-                       AND dest IN (SELECT dest FROM B_dest)
-                       AND bucket IN (SELECT bucket FROM B_bucket);""")
+        where_clauses = ["%s IN (SELECT %s FROM B_%s)" % (col, col, col) for col in columns]
+        cur.execute("""UPDATE %s SET flag = 0
+                       WHERE %s;""" % (relation, ' AND '.join(where_clauses)))
         t1 = time.time()
         print "R<-R-B used: ", t1 - t0
-        print "Mass after update:", get_mass_with_flag(conn, "darpa")
+        print "Mass after update:", get_mass_with_flag(conn, relation)
 
         # the i-th table is stored in B_ori_i and kept in disk when the software finishes
         t0 = time.time()
         table_fresh_create_from_query(conn, "B_ori_%d" % i,
                                       """SELECT * FROM %s
-                                         WHERE src IN (SELECT src FROM B_src)
-                                         AND dest IN (SELECT dest FROM B_dest)
-                                         AND bucket IN (SELECT bucket FROM B_bucket)""" % ori_table)
+                                         WHERE %s""" % (ori_table, ' AND '.join(where_clauses)))
         results.append("B_ori_%d" % i)
         t1 = time.time()
         print "B_ori table used: ", t1 - t0
@@ -507,18 +522,15 @@ def dcube(conn, relation, k, measure, select_dimension):
         # print results
         print "Block %d:" % (i+1)
         print "Mass: %d" % get_mass(conn, 'B_ori_%d' % i)
-        print "Size: %dx%dx%d" % (tuple_counts(conn, 'B_src'), tuple_counts(conn, 'B_dest'), tuple_counts(conn, 'B_bucket'))
+        print "Size: %s" % 'x'.join([str(tuple_counts(conn, "B_%s" % col)) for col in columns])
         print "Density: %f" % rho
         print
 
-        drop_table(conn, "temp")
         conn.commit()
     t_end = time.time()
     print "Total time used: ", t_end - t_start
-
-    drop_table(conn, "R_bucket")
-    drop_table(conn, "R_dest")
-    drop_table(conn, "R_src")
+    for col in columns:
+        drop_table(conn, "R_%s" % col)
     drop_table(conn, ori_table)
     conn.commit()
     cur.close()
@@ -526,10 +538,7 @@ def dcube(conn, relation, k, measure, select_dimension):
 
 
 if __name__ == '__main__':
-    conn = init_database()
     #a = raw_input("press to continue...\n")
-    table_fresh_create_from_file(conn, "darpa", "src text, dest text, mins text", "darpa.csv", True)
-
 
     funcdict = {
       'density': select_dimension_by_density, 
@@ -539,10 +548,22 @@ if __name__ == '__main__':
       'susp': rho_susp, 
     }
 
-    measurement = funcdict[sys.argv[2]]
-    principle = funcdict[sys.argv[3]]
-    block_num = int(sys.argv[1])
-    results = dcube(conn, "darpa", block_num, measurement, principle)
-    drop_table(conn, "darpa")
+    if len(sys.argv) < 6:
+        print "usage: python dcube.py <dimension> <input file> <# of blocks> <measure> <policy>"
+    principle = funcdict[sys.argv[5]]
+    measurement = funcdict[sys.argv[4]]
+    block_num = int(sys.argv[3])
+    input_file = sys.argv[2]
+    dimension = int(sys.argv[1])
+    R_n = {'col_%d' % (i+1): 0 for i in range(dimension)}
+    columns = ['col_%d' % (i+1) for i in range(dimension)]
+    column_str = ' text, '.join(columns) + ' text'
+    print columns
+    print column_str
+    a = raw_input("...")
+    conn = init_database()
+    table_fresh_create_from_file(conn, input_file.split('.')[0], column_str, input_file, True)
+    results = dcube(conn, input_file.split('.')[0], block_num, measurement, principle)
+    drop_table(conn, input_file.split('.')[0])
     database_clearup()
 
