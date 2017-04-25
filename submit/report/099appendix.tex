@@ -1,0 +1,32 @@
+\section*{Appendix A: Revised Plan of Activities}
+\paragraph{} Original:
+
+\bit
+\item In T2, we will work together to combine what we got from all the readings to complete the SQL implementation of D-Cube.
+\item 
+In T3, Hao will be leading on the optimizations by database indexing while Yangqingwei will look into possible modifications to the algorithms to take full advantage of indexing.
+
+\item In T4, Yangqingwei will be working on plotting and analysis of data retrieved from application of the algorithm on datasets, and Hao will be working on applying the SQL codes to the datasets.
+
+\item
+In T5, we will be working together on this task as this will be the heaviest one. Each of us will work on part of the datasets and report interesting findings. Finally, we will working on combining our findings.
+\eit
+
+
+\paragraph{} Revised:
+% TODO:format the new plan like the old one
+\bit
+    \item In T3, Hao will be mainly working on the optimizations through database-related techniques such as indexing and query optimization while Yangqingwei will look into possible modifications to the algorithms and metadata caching to further improve the overall performance.
+    \item In T4, Yangqingwei will be working on plotting and analysis of data retrieved from application of our implementation on various datasets, and Hao will be working on adding portability support to the code so that the cost is minimum when we want to move to a different dataset with different number of dimensions.
+    \item In T5, we will be working together on this task as this will be the heaviest one. Each of us will work on some of the datasets and try out different settings. Finally, we will be working together on any possible further optimizations and work on documentations of our findings.
+\eit
+
+\section*{Appendix B: List of Unit Tests}
+\paragraph{} We designed unit tests for the basic helper functions. Here's a list of unit test in test.py file:
+\begin{enumerate}
+    \item test\_get\_mass: The unit test for testing the helper function to get the total mass of a table. 
+    \item test\_tuple\_counts: The unit test for testing the helper function to get the total number of tuples in a table.
+    \item test\_tuple\_count\_distinct: The unit test for testing the helper function to get the cardinality of a certain dimension of a table.
+    \item test\_rho: The unit test for testing the help function to calculate different density measurements.
+\end{enumerate}
+\paragraph{} We performed unit tests on those function since they are very important building blocks of the whole D-Cube implementation.

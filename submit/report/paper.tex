@@ -1,0 +1,82 @@
+\documentclass[12pt]{article}
+
+\usepackage{fullpage}
+\usepackage{graphicx}
+\usepackage{graphics}
+\usepackage{mdwlist}
+
+
+% christos: these look closer to NSF specs\dots
+\setlength{\oddsidemargin}{0.0in}
+\setlength{\evensidemargin}{0.0in}
+\setlength{\textwidth}{6.5in}
+\setlength{\headheight}{0.0in}
+\setlength{\topmargin}{0.0in}
+% \setlength{\textheight}{9.0in}
+\setlength{\textheight}{9in}
+\addtolength{\textheight}{-\topmargin}
+\addtolength{\textheight}{-\headheight}
+\addtolength{\textheight}{-\headsep}
+\addtolength{\textheight}{-\footskip}
+
+
+
+\begin{document}
+
+\newcommand{\beq}{\begin{equation}}
+\newcommand{\eeq}{\end{equation}}
+\newcommand{\bit}{\begin{itemize*}}
+\newcommand{\eit}{\end{itemize*}}
+\newcommand{\goal}[1]{ {\noindent {$\Rightarrow$} \em {#1} } }
+\newcommand{\hide}[1]{}
+\newcommand{\comment}[1]{ {\footnotesize {#1} } }
+\newtheorem{lemma}{Lemma}
+\newtheorem{theorem}{Theorem}
+\newtheorem{proof}{Proof}
+\newtheorem{defn}{Definition}
+\newtheorem{algo}{Algorithm}
+\newtheorem{observation}{Observation}
+
+\title{Phase2: SQL Implementation}
+
+
+\author{ {\em Yangqingwei Shi} \\	   
+	    {\tt yangqin1@andrew.cmu.edu}
+	 \and
+	 {\em Hao Jin} \\
+	     {\tt haoj@andrew.cmu.edu}}
+\maketitle
+
+\section{Plan for activites}
+    \label{sec:intro}
+    \input{010intro}
+\newpage
+\section{Survey}
+    \label{sec:survey}
+    \input{020survey}
+ 
+\newpage
+\section{Results on DARPA}
+	\label{sec:exp}
+	\input{041results}
+	   
+\newpage
+\section{Upcoming Experiments}
+	\label{sec:exp}
+	\input{040experiments}
+	
+\newpage
+	\label{sec:app}
+	\input{099appendix}
+
+
+
+\bibliography{BIB/christosref,BIB/other}
+\bibliographystyle{plain}
+
+
+\newpage
+\pagenumbering{roman}
+
+
+\end{document}

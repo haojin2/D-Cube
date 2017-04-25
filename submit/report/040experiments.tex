@@ -1,0 +1,16 @@
+\paragraph{} The upcoming experiments for phase 3 will be focused on how to optimize our implementation of D-Cube\cite{shin2017dcube} for faster execution on big input data. The plan for our experiments is as follows:
+\begin{enumerate}
+    \item Try out common optimizations such as creating indexes on tables.
+    \item Reduce unnecessary expensive queries.
+    \item Optimize queries for faster execution.
+    \item Use memory to cache necessary metadata that are guaranteed to fit in memory for faster retrieval and less disk accesses.
+\end{enumerate}
+\subsection{Indexes}
+\paragraph{} Currently most of the tables used during the computation does not have primary keys and indexes, which prevents us from accelerating our implementation from taking advantage of indexes. During phase 3, we will first use the EXPLAIN and ANALYSE queries of Postgres to look for possible bottlenecks, then try adding indexes to the tables and compare the results of EXPLAIN and ANALYSE after the index creation to see if indexes would help.
+\subsection{Reduction of Expensive Queries}
+\paragraph{} Currently for ensuring correctness, our implementation made quite a few fresh table creations, which tears down the existing table and create a totally fresh one with new data. This may be very expensive since a fresh creation involves deletion of the old table and insertion to the new version of the table. On the other hand, some fresh creation can be substituted with proper updates to current table, then fresh creations become unnecessary. Thus reducing such expensive queries would help to reduce the time wasted on fresh creations during the execution.
+\subsection{Optimize Queries}
+\paragraph{} As we all know, we should always try to optimize the queries ourselves instead of totally relying on the DBMS' optimizers. We plan to manually go through all queries used in our implementation and think about better ones based on the output from EXPLAIN and ANALYSE functions of Postgres.
+\subsection{Metadata Caching}
+\paragraph{} Although we cannot assume that the input data fits in the memory, we can always cache some metadata that are used often during our implementation in memory so that we do not have to use SQL queries to get them when we need them. We plan to look for useful metadata during phase 3 and try out caching on them and benchmark the performance improvement.
+

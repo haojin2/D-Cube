@@ -1,0 +1,4 @@
+\contentsline {section}{\numberline {1}Survey}{1}
+\contentsline {subsection}{\numberline {1.1}Papers read by John Smith}{2}
+\contentsline {subsection}{\numberline {1.2}Papers read by Mary Thompson }{2}
+\contentsline {subsection}{\numberline {1.3}Papers read by Michael Miller }{2}
