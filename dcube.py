@@ -372,7 +372,6 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
     # B <- R
     # copy_table(conn, R, "B")
 
-    t0 = time.time()
     if copy_flag == 1:
         table_fresh_create_from_query(conn, "B",
                                       """SELECT %s, cnt FROM %s""" % (', '.join(columns), R))
@@ -380,8 +379,6 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
         table_fresh_create_from_query(conn, "B",
                                       """SELECT %s, cnt FROM %s
                                          WHERE flag = 1""" % (', '.join(columns), R))
-    t1 = time.time()
-    print "B<-R used: ", t1 - t0
     # M_B <- M_R
     M_B = M_R
     # B_n <- R_n
@@ -393,7 +390,6 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
 
     # cache B_n count for faster computation
     # B_n = {"src": R_n["src"], "dest": R_n["dest"], "bucket": R_n["bucket"]}
-    print R_n
     B_n = {key: R_n[key] for key in R_n.keys()}
     # rho~ = rho(M_B, |B_n|, M_R, |R_n|)
     rho_wave = measure(conn, M_B, B_n, M_R, R_n)
@@ -420,14 +416,9 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
                                       "SELECT * FROM M_B_%s WHERE cnt <= %f ORDER BY cnt ASC" %
                                        (col_name, M_B * 1. / tuple_counts(conn, "B_%s" % col_name)))
         cur.execute("CREATE INDEX idx_col_%s ON D_%s USING hash(%s)" % (col_name, col_name, col_name))
-        # cur.execute("CREATE INDEX idx_col_%s ON D_%s(%s)" % (col_name, col_name, col_name))
         conn.commit()
         len_D = tuple_counts(conn, "D_%s" % col_name)
-        t00 = time.time()
-        print len_D
         for j in range(len_D):
-            if j % 10000 == 0:
-                print j
             cur.execute("""SELECT * FROM D_%s LIMIT 1 OFFSET %d""" % (col_name, j))
             attr_name, M_B_a_i, = cur.fetchone()
             # B_i <- B_i - {a}, M_B <- M_B - M_B(a,i)
@@ -443,40 +434,16 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
             if rho_prime > rho_wave:
                 rho_wave = rho_prime
                 r_wave = r
-        t10 = time.time()
-        print "Traversal of D_i used: ", t10 - t00
         conn.commit()
-        # cur.execute("CREATE INDEX idx_B_%s ON B USING hash(%s);" % (col_name, col_name))
-        # index_fresh_create(conn, "B", col_name)
-        # # get new B
-        # t00 = time.time()
-        # table_fresh_create_from_query(conn, "B_temp", """SELECT * FROM B
-        #                                                  WHERE %s NOT IN
-        #                                                  (SELECT %s FROM D_%s)""" % (col_name, col_name, col_name))
-        # t10 = time.time()
-        # print "Create B_temp used: ", t10 - t00
-        print "before delete from B"
-        t00 = time.time()
         cur.execute("DELETE FROM B WHERE %s IN (SELECT %s FROM D_%s)" % (col_name, col_name, col_name))
         conn.commit()
-        t10 = time.time()
-        print "Delete from B used: ", t10 - t00
-        # drop_index(conn, "B")
-        # t00 = time.time()
-        # copy_table(conn, "B_temp", "B")
-        # t10 = time.time()
-        # print "Copy B_temp to B used: ", t10 - t00
-        # drop_table(conn, "B_temp")
         drop_table(conn, "D_%s" % col_name)
-    t1 = time.time()
-    print "while loop used: ", t1 - t0
     # get B~
     for col in columns:
         table_fresh_create_from_query(conn, "B_%s" % col, """SELECT %s
                                                        FROM order_%s
                                                        WHERE ord >= %d""" % (col, col, r_wave))
         drop_table(conn, "order_%s" % col)
-    print B_n
     # rho_wave = measure(conn, M_B, B_n, M_R, R_n)
     drop_table(conn, "B")
     conn.commit()
@@ -488,11 +455,7 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
 # The implementation for Algo 1 in D-Cube paper
 def dcube(conn, relation, k, measure, select_dimension):
     cur = conn.cursor()
-    t0 = time.time()
     ori_table = bucketize(conn, relation)
-    t1 = time.time()
-    print "bucketize used: ", t1-t0
-    print tuple_counts(conn, relation)
     copy_table(conn, ori_table, relation)
 
     # index_fresh_create(conn, "darpa", "src, dest, bucket")
@@ -511,11 +474,9 @@ def dcube(conn, relation, k, measure, select_dimension):
             M_R = get_mass(conn, relation)
         else:
             M_R = get_mass_with_flag(conn, relation)
-        print "M_R:", M_R
         # Blocks are returned in B_src, B_dest, B_bucket tables
         rho = find_single_block(conn, relation, M_R, measure, select_dimension)
         # Get new R by filtering out tuples in B
-        t0 = time.time()
         if copy_flag == 1:
             where_clauses = ["%s NOT IN (SELECT %s FROM B_%s)" % (col, col, col) for col in columns]
             table_fresh_create_from_query(conn, "temp", """SELECT * FROM %s
@@ -526,21 +487,13 @@ def dcube(conn, relation, k, measure, select_dimension):
             where_clauses = ["%s IN (SELECT %s FROM B_%s)" % (col, col, col) for col in columns]
             cur.execute("""UPDATE %s SET flag = 0
                            WHERE %s;""" % (relation, ' AND '.join(where_clauses)))
-        t1 = time.time()
-        print "R<-R-B used: ", t1 - t0
-        if copy_flag == 1:
-            print "Mass after update:", get_mass(conn, relation)
-        else:
-            print "Mass after update:", get_mass_with_flag(conn, relation)
 
         # the i-th table is stored in B_ori_i and kept in disk when the software finishes
-        t0 = time.time()
         table_fresh_create_from_query(conn, "B_ori_%d" % i,
                                       """SELECT * FROM %s
                                          WHERE %s""" % (ori_table, ' AND '.join(where_clauses)))
         results.append("B_ori_%d" % i)
-        t1 = time.time()
-        print "B_ori table used: ", t1 - t0
+
 
         # print results
         print "Block %d:" % (i+1)
@@ -581,9 +534,6 @@ if __name__ == '__main__':
     R_n = {'col_%d' % (i+1): 0 for i in range(dimension)}
     columns = ['col_%d' % (i+1) for i in range(dimension)]
     column_str = ' text, '.join(columns) + ' text'
-    print columns
-    print column_str
-    a = raw_input("...")
     conn = init_database()
     table_fresh_create_from_file(conn, input_file.split('.')[0], column_str, input_file, True)
     results = dcube(conn, input_file.split('.')[0], block_num, measurement, principle)
