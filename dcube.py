@@ -10,6 +10,9 @@ active_tables = {}
 global dimension
 dimension = 0
 
+global copy_flag
+copy_flag = 0
+
 # Data Structure for caching R_n sizes
 global R_n
 R_n = {"src": 0, "dest": 0, "bucket": 0}
@@ -158,30 +161,32 @@ def bucketize(conn, relation, size=BUCKET_FLAG, binary=BINARY_FLAG):
     new_name = relation + "_ori"
     drop_table(conn, new_name)
     if size == 0:
-        # if binary == 0:
-        #     cur.execute("""
-        #                 CREATE TABLE %s AS (
-        #                 SELECT src, dest, mins as bucket, COUNT(*) as cnt, 1 as flag
-        #                 FROM darpa GROUP BY src, dest, mins);
-        #                 """ % new_name)
-        # else:
-        #     cur.execute("""
-        #                 CREATE TABLE %s AS (
-        #                 SELECT src, dest, mins as bucket, 1 as cnt, 1 as flag
-        #                 FROM darpa GROUP BY src, dest, mins);
-        #                 """ % new_name)
-        if binary == 0:
-            cur.execute("""
-                        CREATE TABLE %s AS (
-                        SELECT %s, COUNT(*) as cnt, 1 as flag
-                        FROM %s GROUP BY %s);
-                        """ % (new_name, ', '.join(columns), relation, ', '.join(columns)))
+        if copy_flag == 1:
+            if binary == 0:
+                cur.execute("""
+                            CREATE TABLE %s AS (
+                            SELECT %s, COUNT(*) as cnt
+                            FROM %s GROUP BY %s);
+                            """ % (new_name, ', '.join(columns), relation, ', '.join(columns)))
+            else:
+                cur.execute("""
+                            CREATE TABLE %s AS (
+                            SELECT %s, 1 as cnt
+                            FROM %s GROUP BY %s);
+                            """ % (new_name, ', '.join(columns), relation, ', '.join(columns)))
         else:
-            cur.execute("""
-                        CREATE TABLE %s AS (
-                        SELECT %s, 1 as cnt, 1 as flag
-                        FROM %s GROUP BY %s);
-                        """ % (new_name, ', '.join(columns), relation, ', '.join(columns)))
+            if binary == 0:
+                cur.execute("""
+                            CREATE TABLE %s AS (
+                            SELECT %s, COUNT(*) as cnt, 1 as flag
+                            FROM %s GROUP BY %s);
+                            """ % (new_name, ', '.join(columns), relation, ', '.join(columns)))
+            else:
+                cur.execute("""
+                            CREATE TABLE %s AS (
+                            SELECT %s, 1 as cnt, 1 as flag
+                            FROM %s GROUP BY %s);
+                            """ % (new_name, ', '.join(columns), relation, ', '.join(columns)))
     elif size == 1:
         #print "bucketize by hour"
         if binary == 0:
@@ -368,9 +373,13 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
     # copy_table(conn, R, "B")
 
     t0 = time.time()
-    table_fresh_create_from_query(conn, "B",
-                                  """SELECT %s, cnt FROM %s
-                                     WHERE flag = 1""" % (', '.join(columns), R))
+    if copy_flag == 1:
+        table_fresh_create_from_query(conn, "B",
+                                      """SELECT %s, cnt FROM %s""" % (', '.join(columns), R))
+    else:
+        table_fresh_create_from_query(conn, "B",
+                                      """SELECT %s, cnt FROM %s
+                                         WHERE flag = 1""" % (', '.join(columns), R))
     t1 = time.time()
     print "B<-R used: ", t1 - t0
     # M_B <- M_R
@@ -386,7 +395,6 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
     # B_n = {"src": R_n["src"], "dest": R_n["dest"], "bucket": R_n["bucket"]}
     print R_n
     B_n = {key: R_n[key] for key in R_n.keys()}
-    print B_n
     # rho~ = rho(M_B, |B_n|, M_R, |R_n|)
     rho_wave = measure(conn, M_B, B_n, M_R, R_n)
     # r, r~ <- 0
@@ -416,7 +424,10 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
         conn.commit()
         len_D = tuple_counts(conn, "D_%s" % col_name)
         t00 = time.time()
+        print len_D
         for j in range(len_D):
+            if j % 10000 == 0:
+                print j
             cur.execute("""SELECT * FROM D_%s LIMIT 1 OFFSET %d""" % (col_name, j))
             attr_name, M_B_a_i, = cur.fetchone()
             # B_i <- B_i - {a}, M_B <- M_B - M_B(a,i)
@@ -465,6 +476,8 @@ def find_single_block(conn, R, M_R, measure=rho_ari, select_dimension=select_dim
                                                        FROM order_%s
                                                        WHERE ord >= %d""" % (col, col, r_wave))
         drop_table(conn, "order_%s" % col)
+    print B_n
+    # rho_wave = measure(conn, M_B, B_n, M_R, R_n)
     drop_table(conn, "B")
     conn.commit()
     cur.close()
@@ -479,6 +492,7 @@ def dcube(conn, relation, k, measure, select_dimension):
     ori_table = bucketize(conn, relation)
     t1 = time.time()
     print "bucketize used: ", t1-t0
+    print tuple_counts(conn, relation)
     copy_table(conn, ori_table, relation)
 
     # index_fresh_create(conn, "darpa", "src, dest, bucket")
@@ -493,23 +507,31 @@ def dcube(conn, relation, k, measure, select_dimension):
         R_n[col] = tuple_counts(conn, "R_%s" % col)
 
     for i in range(k):
-        M_R = get_mass_with_flag(conn, relation)
+        if copy_flag == 1:
+            M_R = get_mass(conn, relation)
+        else:
+            M_R = get_mass_with_flag(conn, relation)
         print "M_R:", M_R
         # Blocks are returned in B_src, B_dest, B_bucket tables
         rho = find_single_block(conn, relation, M_R, measure, select_dimension)
         # Get new R by filtering out tuples in B
-        # table_fresh_create_from_query(conn, "temp", """SELECT * FROM darpa
-        #                                                WHERE src NOT IN (SELECT src FROM B_src)
-        #                                                OR dest NOT IN (SELECT dest FROM B_dest)
-        #                                                OR bucket NOT IN (SELECT bucket FROM B_bucket)""")
-        # copy_table(conn, "temp", "darpa")
         t0 = time.time()
-        where_clauses = ["%s IN (SELECT %s FROM B_%s)" % (col, col, col) for col in columns]
-        cur.execute("""UPDATE %s SET flag = 0
-                       WHERE %s;""" % (relation, ' AND '.join(where_clauses)))
+        if copy_flag == 1:
+            where_clauses = ["%s NOT IN (SELECT %s FROM B_%s)" % (col, col, col) for col in columns]
+            table_fresh_create_from_query(conn, "temp", """SELECT * FROM %s
+                                                           WHERE %s""" % (relation, ' OR '.join(where_clauses)))
+            copy_table(conn, "temp", relation)
+            drop_table(conn, "temp")
+        else:
+            where_clauses = ["%s IN (SELECT %s FROM B_%s)" % (col, col, col) for col in columns]
+            cur.execute("""UPDATE %s SET flag = 0
+                           WHERE %s;""" % (relation, ' AND '.join(where_clauses)))
         t1 = time.time()
         print "R<-R-B used: ", t1 - t0
-        print "Mass after update:", get_mass_with_flag(conn, relation)
+        if copy_flag == 1:
+            print "Mass after update:", get_mass(conn, relation)
+        else:
+            print "Mass after update:", get_mass_with_flag(conn, relation)
 
         # the i-th table is stored in B_ori_i and kept in disk when the software finishes
         t0 = time.time()
@@ -542,11 +564,11 @@ if __name__ == '__main__':
     #a = raw_input("press to continue...\n")
 
     funcdict = {
-      'density': select_dimension_by_density, 
-      'cardinality': select_dimension_by_cardinality, 
-      'ari': rho_ari, 
-      'geo': rho_geo, 
-      'susp': rho_susp, 
+      'density': select_dimension_by_density,
+      'cardinality': select_dimension_by_cardinality,
+      'ari': rho_ari,
+      'geo': rho_geo,
+      'susp': rho_susp,
     }
 
     if len(sys.argv) < 6:
