@@ -1,0 +1,43 @@
+\paragraph{} We test our D-Cube\cite{shin2017dcube} code on DARPA using different density measurements and dimension selectiing principles. The results of the first dense block detected are shown as the following tables (mass, size and density). The file darpa.csv has been bucketized by day with binarized cnt.\\
+
+\begin{table}[htb]
+\begin{center}
+\begin{tabular}{|c|c|c|c|}
+  \hline 
+  & arithmetic & geometric & suspicious\\\hline
+  by density & 22728 & 39868 & 99768\\\hline
+  by cardinality & 19217 & 19127 & 69548 \\
+  \hline
+\end{tabular}
+\caption{Results of Mass}
+\label{tab:mass}
+\end{center}
+\end{table}
+
+\begin{table}[htb]
+\begin{center}
+\begin{tabular}{|c|c|c|c|}
+  \hline 
+  & arithmetic & geometric & suspicious\\\hline
+  by density & $34 \times 55 \times 44$ &  $22\times 471\times 45$ & $37\times 23398\times 57$\\\hline
+  by cardinality &  $35\times 36\times 45$ & $35\times 36\times 45$ & $81\times 2542\times 57$ \\
+  \hline
+\end{tabular}
+\caption{Results of Dimension Sizes}
+\label{tab:size}
+\end{center}
+\end{table}
+
+\begin{table}[htb]
+\begin{center}
+\begin{tabular}{|c|c|c|c|}
+  \hline 
+  & arithmetic & geometric & suspicious\\\hline
+  by density & 512.66 &  514.12 & 420285.97\\\hline
+  by cardinality &  496.99 & 500.21 & 367516.83 \\
+  \hline
+\end{tabular}
+\caption{Results of Density}
+\label{tab:size}
+\end{center}
+\end{table}

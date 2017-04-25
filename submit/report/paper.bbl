@@ -1,0 +1,9 @@
+\begin{thebibliography}{1}
+
+\bibitem{shin2017dcube}
+Kijung Shin, Bryan Hooi, Jisu Kim, and Christos Faloutsos.
+\newblock D-cube: Dense-block detection in terabyte-scale tensors.
+\newblock In {\em Proceedings of the 10th ACM International Conference on Web
+  Search and Data Mining}, WSDM '17. ACM, 2017.
+
+\end{thebibliography}
