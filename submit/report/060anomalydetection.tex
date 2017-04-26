@@ -1,7 +1,7 @@
 \subsubsection{Top 5 Blocks for Amazon, Wiki and Yelp Datasets}
 \paragraph{}
-The results are shown in Table 3, 4 and 5.
-\begin{table}
+The results are shown in following tables.
+\begin{table}[!ht]
 \centering
 \begin{tabular}{|c|c|c|c|c|}
     \hline
@@ -20,7 +20,7 @@ The results are shown in Table 3, 4 and 5.
 \end{tabular}
 \caption {Top 5 dense blocks for Amazon Dataset}
 \end{table}
-\begin{table}
+\begin{table}[!ht]
 \centering
 \begin{tabular}{|c|c|c|c|c|}
     \hline
@@ -39,7 +39,7 @@ The results are shown in Table 3, 4 and 5.
 \end{tabular}
 \caption {Top 5 dense blocks for Wiki Dataset}
 \end{table}
-\begin{table}
+\begin{table}[!ht]
 \centering
 \begin{tabular}{|c|c|c|c|c|}
     \hline
@@ -58,14 +58,22 @@ The results are shown in Table 3, 4 and 5.
 \end{tabular}
 \caption {Top 5 dense blocks for Yelp Dataset}
 \end{table}
+\newpage
 \subsubsection{Suspicious Blocks}
-\paragraph{Amazon Dataset} We think that none of the top 5 blocks for Amazon dataset is a suspicious block. For the top 4 blocks, we can interpret them as some users gave the same rating to some different apps during the same hour, which is a
-very possible event considering the number of users of Amazon and the granularity of the timestamp. For the last block among the top 5 blocks, we observe that the cardinality of the last dimension is 5, which equals to the cardinality of
-that dimension of the original dataset, and it means that a lot users gave all kinds of ratings to a wide range of apps during a long time period, which is just normal behaviour of websites of Amazon's size.
-So we think none of those blocks from Amazon dataset is an anomaly.
-\paragraph{Wiki Dataset} We think that block 2 may be a dense block since this means that a small number of users updated a small number of pages a large number of times, thus we think block 2 may be an anomaly. All other blocks are either
-small number of users making few changes to the same page or larger number of users make many changes to a wider range of pages, which, we think are legal activities for Wikipedia. So for Wiki dataset we think block 2 may be an anomaly.
-\paragraph{Yelp Dataset} We think that none of the top 5 blocks for Yelp dataset is a suspicious block. For the top 4 blocks, we can interpret them as some users gave the same rating to some different businesses during the same hour, which is a
-very possible event considering the number of users of Yelp and the granularity of the timestamp. For the last block among the top 5 blocks, we observe that the cardinality of the last dimension is 5, which equals to the cardinality of
-that dimension of the original dataset, and it means that a lot users gave all kinds of ratings to a wide range of businesses during a long time period, which is just normal behaviour of websites of Yelp's scale.
-So we think none of those dense blocks from Yelp dataset is an anomaly.
+\paragraph{Amazon Dataset} We think that none of the top 5 blocks for Amazon dataset is a suspicious block. As the Amazon dataset has 4 dimensions which corresponds to user\_id, app\_id, time\_in\_hours and rating respectively, then
+for the top 4 blocks, we can interpret them as some users gave the same rating to some different apps during the same hour, which is a very possible event considering the number of users of Amazon and the granularity of the timestamp.
+\paragraph{} On the other hand, for the last block among the top 5 blocks, we observe that the cardinality of the last dimension is 5, which equals to the total cardinality of that dimension of the original dataset,
+and it means that a lot users gave all kinds of ratings to a wide range of apps during a long time period, which is just normal behaviour that we expect from websites of Amazon's size.
+So we think none of those detected blocks from Amazon dataset is an anomaly.
+\paragraph{Wiki Dataset} We think that block 2 may be an anomaly block. As the Wiki dataset has 3 dimensions which corresponds to user\_name, page, time\_in\_hours, then a block of dimension 3*3*744 means that a small number of users
+updated a small number of pages for many times, which implies that either those users are very enthusiastic on some pages or the overly frequent changes on those pages are anomalous. So we think that block 2 may be an anomaly.
+Block 1 and 3 can be interpreted as someone who is very proficient in some area making constant changes to the same page for maintenance, which, we think, is normal for the Wikipedia community.
+\paragraph{} On the other hand, block 4 and 5 can be interpreted as a larger number of users make many changes to a wide range of pages over long time, which, we think are legal activities for Wikipedia since many pages have more than one contributor and each of them contribute a small
+part of so it should be natural for them to update the pages like this. In conclusion, from what we already know about how Wikipedia works and the cardinalities of the blocks we think that block 2 for Wiki dataset may be an anomaly while
+other blocks indicate benign activities.
+\newpage
+\paragraph{Yelp Dataset} We think that none of the top 5 blocks for Yelp dataset is a suspicious block. Due to that the Yelp dataset has 4 dimensions which corresponds to user\_id, business\_id, time\_in\_hours and rating respectively,
+for top 4 blocks, we can interpret them as some users gave the same rating to some different businesses during the same hour, which is a very possible event if we take the number of users of Yelp and the granularity of the timestamp
+into consideration.
+\paragraph{} For block 5, we observe that the cardinality of the last dimension is 5, which equals to the cardinality of that dimension of the original dataset, and the rest dimensions all have very large cardinalities. This can be
+interpreted as a lot users gave all kinds of ratings to a wide range of businesses during a long time period, which is just what we expect from the users of a website of Yelp's scale. As a result, we think none of those dense blocks from Yelp dataset is an anomaly.

@@ -1,0 +1,10 @@
+\paragraph{} For this project we aim to implement an anomaly detector for multi-aspect datasets collected from real-life events. As many past studies claim that dense blocks in real-life multi-aspect data indicate anomalies,
+our task is alternatively building an efficient detector of dense blocks in real-life datasets. There are many existing dense block detection algorithms for tensors, we chose DCube algorithm as our target algorithm since
+it's proven to out-perform many existing algorithms while also ensuring a lower bound on the density of detected blocks. So our goal for this project is to implement, test and evaluate DCube algorithm using SQL on real-life datasets.
+The main challenges are:
+\begin{enumerate}
+\item Transform DCube algorithm, which is not orginally designed for implementation in SQL, to be implemented in SQL.
+\item Adopt proper database query optimization techniques to improve the performance of SQL queries to achieve ideal performance on large datasets.
+\item Evaluate our implementation on real-life datasets and prove that the implementation is correct.
+\item Identify true anomalies from the detected blocks.
+\end{enumerate}

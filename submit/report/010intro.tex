@@ -12,9 +12,8 @@
 %    \item In T4, Yangqingwei will be working on plotting and analysis of data retrieved from application of our implementation on various datasets, and Hao will be working on adding portability support to the code so that the cost is minimum when we want to move to a different dataset with different number of dimensions.
 %    \item In T5, we will be working together on this task as this will be the heaviest one. Each of us will work on some of the datasets and try out different settings. Finally, we will be working together on any possible further optimizations and work on documentations of our findings.
 %\eit
-\paragraph{} Many real-life data can be expressed as multi-aspect data(tensors) and easily stored as tables in relational databases. As the scale of websites grows these years, the size of datasets are also growing rapidly,
-thus breaking the assumption that all data should fit into memory. This change challenges the traditional practices for processing data, thus we want to explore the possibility of using Structured Query Language(SQL),
-which can handle data that does not fit in memory while enabling us to adopt the latest technologies from database researches, to process large multi-aspect data.
-\paragraph{} For this project we aim to implement an anomaly detector for multi-aspect datasets collected from real-life events. As many past studies claim that dense blocks in real-life multi-aspect data indicate anomalies, we want to implement a detector of dense blocks
-in real-life datasets. There are many existing dense block detection algorithms for tensors, we chose DCube algorithm as our target algorithm since it's proven to out-perform many existing algorithms while also ensuring the density of detected
-blocks.
+\paragraph{} Most real-life information can be expressed as multi-aspect data(tensors) and easily stored as tables in relational databases. As the scales of websites grow these years, the sizes of datasets are also growing rapidly,
+thus breaking the assumption that all data should fit into memory. This change challenges the traditional practices for processing data, thus we want to explore ways to handle datasets that do not fit into memory of normal-sized machines.
+For this project we tried the possibility of using Structured Query Language(SQL), a powerful language that is able to handle data that does not fit in memory while still enabling us to adopt the latest technologies from database
+researches for faster computation on large multi-aspect data. Since SQL can run on any hardware as long as there exists a proper DBMS, a successful SQL implementation will enable us to perform efficient analysis of multi-aspect datasets
+of any size on any machine.
