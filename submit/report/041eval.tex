@@ -41,7 +41,15 @@
 \end{table}
 
 \subsubsection{Suspiciousness Analysis}
-I write a program to count how many tuples found in block are labelled as not normal connections and I found in most blocks almost all tuples in those blocks are tagged as ``attack''. It shows that the approach is effective. 
+By just taking a look at the cardinality of all dimensions of the detected blocks, we can decide that some of those blocks are
+anomalies right away since their cardinalities on all dimensions are relatively small and they still have high mass. Such blocks
+suggest that some small number of users are sending extremely high volume of network traffic over a short period of time, which is very
+suspicious activity.
+Then We looked at all tuples in the detected blocks and cross-checked with the labelled dataset and found that most of those tuples in
+the detected blocks turn out to be labelled as various network attacks, which proves our idea stated before. We also calculated
+the true positive rate and false positive rate of our detected tuples, and we found with small number of blocks detected(<20), the true
+postive rate is way higher than the false positive rate, which means that we are hitting most anomalous tuples while avoiding hurting many
+benign tuples.
 
 \subsubsection{ROC and AUC}
 The ROC Curve and the AUC value are shown in Figure 1 and Figure 2.

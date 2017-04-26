@@ -1,15 +1,20 @@
 \paragraph{} The major contribution of this project can be concluded into the following three aspects. 
-\paragraph{} Firstly, we successfully completed the implementation of DCube dense block detection algorithm with proper optimizations. Although the overall performance of our implementation
-using Postgres is still way slower than the original implementation of DCube, it is still acceptable considering the difference in the speed of hard disks and memory chips. What's more,
-we compared the effects of different implementation details on overall performance and provided additional successful optimizations to further improve the performance of our detector.
-\paragraph{} Secondly, the outputs of our dense block detector shows that our implementation can correctly detect the top dense blocks in real-life multi-aspect data. The ROC curve of
-our results on DARPA and AIRFORCE datasets shows that we have a high true positive rate for detecting network attacks, and the AUC value also illustrates the correctness of our implementaion.
-\paragraph{} Thirdly, we successfully extended the usage of our dense block detector to more real-life tensors and successfully detected the top dense blocks in those datasets and also gave our
-insights on whether the dense blocks are anomalies or not.
-\paragraph{} Furthermore, although we've proved that our implementation has good speed and correct results, there's always room for improvement, we think that this project can still be
+\paragraph{} Firstly, we successfully completed the implementation of DCube dense block detection algorithm with proper optimizations through our results on sample real-life datasets and benchmarks.
+Although the overall performance of our implementation using SQL on Postgres is still way slower compared to the original implementation of DCube decribed in the original DCube paper,
+it is still acceptable considering the difference in the speed of hard disks and memory chips. What's more, we compared the effects of different implementation details on overall performance
+and provided additional successful optimizations by taking advantage of optimizations provided by DBMS through creating indices to further improve the performance of our detector on large datasets and
+gained a speedup of around 3.
+\paragraph{} Secondly, the results of our dense block detector shows that our implementation can correctly detect the top dense blocks in real-life multi-aspect data. The ROC curve of
+our results on DARPA and AIRFORCE datasets shows that we have a high true positive rate for detecting network attacks, and the AUC values on the datasets also illustrate the correctness of our implementaion.
+Our results are comparable with the results of the original implementation described in the paper.
+\paragraph{} Thirdly, we successfully extended the usage of our dense block detector to more real-life tensors of any dimensions and successfully detected the top dense blocks in those datasets.
+Our results on those datasets are also comparable with the results of the original implementation on the same datasets. What's more, we also gave our insights on whether the detected dense
+blocks are anomalies or not without any provided labels in the dataset based on our knowledge.
+\paragraph{} Furthermore, although we've proved that our implementation has good speed and correct results on sample datasets, there's always room for improvement, we think that this project can still be
 improved in the following ways:
 \begin{enumerate}
 \item Use a different DBMS for even faster execution.
 \item Create even more indices to improve as much of the computation as possible.
 \item Application to more real-life data to check for correctness and performance.
+\item Check with the sources of the datasets to get labels so that we can further verify our results on the datasets.
 \end{enumerate}
