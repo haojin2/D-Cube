@@ -1,0 +1,12 @@
+\subsection{Copy Method}
+\paragraph{} The copy method implements line 8 of Algorithm 1(R<-R-B) by making a copy of the previous table R with all tuples in B filtered out. We tested the performance of this method on one of the group member's laptop
+using the workload of finding top 3 blocks from DARPA dataset with arithmetic density measure and select-by-density policy without any extra optimizations. The computation took 1449 seconds to complete.
+\subsection{Mark Method}
+\paragraph{} To implement the the mark method, we add an additional column on the R table named 'flag' and initialize all tuples with value 1 on the 'flag' column at the beginning. Then we implement line 8 of Algorithm 1(R<-R-B) by
+updating values of the 'flag' column to 0. We tested the performance of this method on the same laptop with the copy method test using the same workload without any extra optimizations. The computation took 976 seconds to complete.
+\subsection{Other Optimizations}
+\paragraph{} We observed that the calculation of M_B(a,i) is very slow since we used a right join between B and B_n to implement it, so we think that we’d better create indices on related tables in this join if we want to speed it up.
+So we tried adding indices to the B_n tables to improve the speed of this right join query. And we did achieve a significant speedup with indices on Bn tables. This is tested on the same laptop used in the previous two sections.
+Using copy method, with indices on B_n, find top k = 3 blocks on darpa.csv, using arithmetic measure and select dimension by density policy: 306s
+Using mark method, with indices on B_n, find top k = 3 blocks on darpa.csv, using arithmetic measure and select dimension by density policy: 284s
+Adding indices to B_n gives us an overall speedup of around 3 compared to the results without those indices.
