@@ -97,6 +97,16 @@ def table_fresh_create_from_file(conn, name, columns, filename, flag = True):
     cur.close()
 
 
+def table_save_to_file(conn, tb, filename):
+    cur = conn.cursor()
+    try:
+        cur.execute("""COPY %s TO '%s/%s'
+                       DELIMITER ',' CSV HEADER;""" % (tb, os.path.dirname(os.path.realpath(__file__)),filename))
+    except psycopg2.Error:
+        pass
+    conn.commit()
+    cur.close()
+
 # Helper function for copying a table
 def copy_table(conn, src, cpy, drop = True):
     cur = conn.cursor()
@@ -493,8 +503,9 @@ def dcube(conn, relation, k, measure, select_dimension):
                                       """SELECT * FROM %s
                                          WHERE %s""" % (ori_table, ' AND '.join(where_clauses)))
         results.append("B_ori_%d" % i)
-
-
+        table_save_to_file(conn, "B_ori_%d" % i, "B_ori_%d.csv" % i)
+        for col in columns:
+            table_save_to_file(conn, "B_%s" % col, "B_%s_%d.csv" % (col, i))
         # print results
         print "Block %d:" % (i+1)
         print "Mass: %d" % get_mass(conn, 'B_ori_%d' % i)
