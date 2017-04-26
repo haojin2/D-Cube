@@ -1,0 +1,70 @@
+\subsection{Top 5 Blocks for Amazon, Wiki and Yelp Datasets}
+\paragraph{}
+\begin{table}
+\centering
+\begin{tabular}{|c|c|c|c|c|}
+    \hline
+        Dataset & k & Dimension & Mass & Density \\
+    \hline
+        Amazon & 1 & 60 x 60 x 1 x 1 & 3600 & 118.033 \\
+    \hline
+        Amazon & 2 & 150 x 150 x 3 x 2 & 7550 & 99.016 \\
+    \hline
+        Amazon & 3 & 40 x 40 x 1 x 1 & 1600 & 78.049 \\
+    \hline
+        Amazon & 4 & 35 x 35 x 1 x 1 & 1225 & 68.056 \\
+    \hline
+        Amazon & 5 & 3412 x 1745 x 1011 x 5 & 77694 & 50.344 \\
+    \hline
+\end{tabular}
+\caption {Top 5 dense blocks for Amazon Dataset}
+\end{table}
+\begin{table}
+\centering
+\begin{tabular}{|c|c|c|c|c|}
+    \hline
+        Dataset & k & Dimension & Mass & Density \\
+    \hline
+        Wiki & 1 & 1 x 1 x 30 & 7756 & 2496.112 \\
+    \hline
+        Wiki & 2 & 3 x 3 x 744 & 16508 & 875.836 \\
+    \hline
+        Wiki & 3 & 1 x 1 x 22 & 1520 & 542.462 \\
+    \hline
+        Wiki & 4 & 13 x 11 x 730 & 22824 & 484.736 \\
+    \hline
+        Wiki & 5 & 75 x 35 x 744 & 40017 & 320.143 \\
+    \hline
+\end{tabular}
+\caption {Top 5 dense blocks for Wiki Dataset}
+\end{table}
+\begin{table}
+\centering
+\begin{tabular}{|c|c|c|c|c|}
+    \hline
+        Dataset & k & Dimension & Mass & Density \\
+    \hline
+        Wiki & 1 & 60 X 60 X 1 X 1 & 3600 & 118.033 \\
+    \hline
+        Wiki & 2 & 55 X 55 X 1 X 1 & 3025 & 108.036 \\
+    \hline
+        Wiki & 3 & 50 X 50 X 1 X 1 & 2500 & 98.039 \\
+    \hline
+        Wiki & 4 & 45 X 45 X 1 X 1 & 2025 & 88.043 \\
+    \hline
+        Wiki & 5 & 5416 X 4464 X 2792 X 5 & 268578 & 84.745 \\
+    \hline
+\end{tabular}
+\caption {Top 5 dense blocks for Yelp Dataset}
+\end{table}
+\subsection{Suspicious Blocks}
+\paragraph{Amazon Dataset} We think that none of the top 5 blocks for Amazon dataset is a suspicious block. For the top 4 blocks, we can interpret them as some users gave the same rating to some different apps during the same hour, which is a
+very possible event considering the number of users of Amazon and the granularity of the timestamp. For the last block among the top 5 blocks, we observe that the cardinality of the last dimension is 5, which equals to the cardinality of
+that dimension of the original dataset, and it means that a lot users gave all kinds of ratings to a wide range of apps during a long time period, which is just normal behaviour of websites of Amazon's size.
+So we think none of those blocks from Amazon dataset is an anomaly.
+\paragraph{Wiki Dataset} We think that block 2 may be a dense block since this means that a small number of users updated a small number of pages a large number of times, thus we think block 2 may be an anomaly. All other blocks are either
+small number of users making few changes to the same page or larger number of users make many changes to a wider range of pages, which, we think are legal activities for Wikipedia. So for Wiki dataset we think block 2 may be an anomaly.
+\paragraph{Yelp Dataset} We think that none of the top 5 blocks for Yelp dataset is a suspicious block. For the top 4 blocks, we can interpret them as some users gave the same rating to some different businesses during the same hour, which is a
+very possible event considering the number of users of Yelp and the granularity of the timestamp. For the last block among the top 5 blocks, we observe that the cardinality of the last dimension is 5, which equals to the cardinality of
+that dimension of the original dataset, and it means that a lot users gave all kinds of ratings to a wide range of businesses during a long time period, which is just normal behaviour of websites of Yelp's scale.
+So we think none of those dense blocks from Yelp dataset is an anomaly.
