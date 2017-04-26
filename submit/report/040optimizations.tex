@@ -1,12 +1,34 @@
 \subsubsection{Copy Method}
 \paragraph{} The copy method implements line 8 of Algorithm 1(R=R-B) by making a copy of the previous table R with all tuples in B filtered out. We tested the performance of this method on one of the group member's laptop
-using the workload of finding top 3 blocks from DARPA dataset with arithmetic density measure and select-by-density policy without any extra optimizations. The computation took 1449 seconds to complete.
+using the workload of finding top 3 blocks from DARPA dataset with arithmetic density measure and select-by-density policy without any extra optimizations.
+The computation took 1449 seconds to complete, and that will serve as the baseline performance for our SQL implementation and we'll compare the effect of optimizations to
+this result.
 \subsubsection{Mark Method}
 \paragraph{} To implement the the mark method, we add an additional column on the R table named 'flag' and initialize all tuples with value 1 on the 'flag' column at the beginning. Then we implement line 8 of Algorithm 1(R=R-B) by
-updating values of the 'flag' column to 0. We tested the performance of this method on the same laptop with the copy method test using the same workload without any extra optimizations. The computation took 976 seconds to complete.
+updating values of the 'flag' column to 0. The additional column caused some additional computations but the overall performance gets a boost after we adopt the mark method.
+We tested the performance of this method on the same laptop with the copy method test using the same workload without any extra optimizations, the computation took 976 seconds to complete,
+which is around 1.5 times speed-up compared to the baseline performance.
 \subsubsection{Other Optimizations}
 \paragraph{} We observed that the calculation of $M{\_}B(a,i)$ is very slow since we used a right join between B and B{\_}n to implement it, so we think that we’d better create indices on related tables in this join if we want to speed it up.
 So we tried adding indices to the B{\_}n tables to improve the speed of this right join query. And we did achieve a significant speedup with indices on B{\_}n tables. This is tested on the same laptop used in the previous two sections.
-Using copy method, with indices on B{\_}n, find top k = 3 blocks on darpa.csv, using arithmetic measure and select dimension by density policy: 306s
-Using mark method, with indices on B{\_}n, find top k = 3 blocks on darpa.csv, using arithmetic measure and select dimension by density policy: 284s
-Adding indices to B{\_}n gives us an overall speedup of around 3 compared to the results without those indices.
+Using copy method, with indices on B{\_}n, find top k = 3 blocks on darpa.csv, using arithmetic measure and select dimension by density policy: 306 seconds.
+Using mark method, with indices on B{\_}n, find top k = 3 blocks on darpa.csv, using arithmetic measure and select dimension by density policy: 284 seconds.
+Adding indices to B{\_}n gives us an overall speedup of around 3 compared to the results without those indices with the same method. So we can see that this optimization
+is consistently boosting performance for both methods. So this means the calculation of $M{\_}B(a,i)$ is a bottleneck in our implementation and adding
+indices to B{\_}n can improve the performance greatly.
+\paragraph{} We also tried out adding indices to a bunch of other tables such as D{\_}n tables, however, it does not bring any
+interesting performance boost that causes qualitative improvement to our performance.
+\begin{table} [!ht]
+\centering
+\begin{tabular}{|c|c|c|c|}
+    \hline
+        Method & k & Time without extra indices & Time with extra indices \\
+    \hline
+        Copy & 3 & 1449 & 306\\
+    \hline
+        Mark & 3 & 976 & 284 \\
+    \hline
+\end{tabular}
+\caption{Table of Benchmark Performance}
+
+\end{table}

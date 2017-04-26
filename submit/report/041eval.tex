@@ -1,5 +1,5 @@
 \subsubsection{Results}
-\paragraph{} The results first five blocks of the darpa and airforce are shown in Table 1 and Table 2.
+\paragraph{} The results first five blocks of the darpa and airforce are shown in the tables above.
 \begin{table}
 \centering
 \begin{tabular}{|c|c|c|c|c|}
@@ -51,14 +51,19 @@ the true positive rate and false positive rate of our detected tuples, and we fo
 postive rate is way higher than the false positive rate, which means that we are hitting most anomalous tuples while avoiding hurting many
 benign tuples.
 
+\newpage
 \subsubsection{ROC and AUC}
 The ROC Curve and the AUC value are shown in Figure 1 and Figure 2.
-\begin{figure}
+\begin{figure}[!ht]
 \includegraphics[scale=0.5]{roc1.png}
 \caption{ROC Curve of Darpa Dataset After 60-Block Detections, AUC = 0.912}
 \end{figure}
 
-\begin{figure}
+\begin{figure}[!ht]
 \includegraphics[scale=0.5]{roc2.png}
 \caption{ROC Curve of Airforce Dataset After 20-Block Detections, AUC = 0.948}
 \end{figure}
+\paragraph{} From the ROC curves and AUC values we can see that the results we get on DARPA and AIRFORCE datasets are comparable to the
+results presented in the original DCube paper. The true positive rate is way higher than false positive rate when number of blocks is small,
+which means that our implementation can find the dense blocks which are most suspicious. The AUC values are also similar to the ones from the
+original DCube paper. These results suggest that our SQL implementation can deliver results with comparable correctness on real-life datasets.
